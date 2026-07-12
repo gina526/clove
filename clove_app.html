@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>clove.</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  --cream: #F5EFE6; --cream-mid: #EDE4D8; --cream-dark: #D9CCBB;
+  --brown-light: #8B7355; --brown: #5C4A35; --brown-deep: #3D2C1E;
+  --rose: #E8D5C8; --rose-text: #7A5446;
+  --sage: #EDF2EE; --sage-dark: #D0DACE; --sage-text: #3A5C44;
+  --amber: #FFF3E0; --amber-text: #8B5E0A;
+  --text: #1A1410; --text-mid: #5C4A35; --text-muted: #8B7967;
+  --border: rgba(92,74,53,0.13); --border-mid: rgba(92,74,53,0.22);
+  --white: #FFFFFF; --bg: #FAFAF8;
+  --danger: #C0392B; --danger-bg: #FDECEA;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+  --sidebar-w: 216px; --topbar-h: 52px;
+}
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* ── ONBOARDING ── */
+#onboarding { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--cream); padding: 2rem; }
+.ob-card { background: var(--white); border-radius: var(--r-xl); padding: 2.75rem 2.5rem; width: 100%; max-width: 400px; border: 0.5px solid var(--cream-dark); }
+.ob-logo { font-size: 20px; font-weight: 700; color: var(--brown-deep); letter-spacing: -0.5px; margin-bottom: 0.3rem; }
+.ob-logo span { color: var(--brown-light); font-weight: 400; }
+.ob-tagline { font-size: 12px; color: var(--text-muted); margin-bottom: 2rem; }
+.ob-title { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.4px; margin-bottom: 0.35rem; }
+.ob-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 1.75rem; line-height: 1.6; }
+.ob-step { display: none; } .ob-step.active { display: block; }
+.ob-progress { display: flex; gap: 5px; margin-bottom: 1.75rem; }
+.ob-dot { height: 3px; border-radius: 2px; flex: 1; background: var(--cream-mid); transition: background 0.2s; }
+.ob-dot.done { background: var(--brown-deep); }
+.field-label { font-size: 11px; font-weight: 500; color: var(--text-mid); margin-bottom: 5px; letter-spacing: 0.1px; display: block; }
+.field-input, .field-select, .field-textarea { font-family: var(--font); font-size: 13px; width: 100%; padding: 9px 13px; border: 0.5px solid var(--border-mid); border-radius: var(--r-md); background: var(--white); color: var(--text); outline: none; transition: border-color 0.15s; margin-bottom: 0.9rem; }
+.field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--brown-light); }
+.field-textarea { resize: vertical; min-height: 75px; line-height: 1.55; }
+.btn-full { width: 100%; padding: 10px; background: var(--brown-deep); color: var(--cream); border: none; border-radius: var(--r-xl); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+.btn-full:hover { background: #2C1E12; }
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.25rem; }
+.role-card { border: 0.5px solid var(--border-mid); border-radius: var(--r-lg); padding: 1.1rem 1rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: center; }
+.role-card:hover { background: var(--cream); }
+.role-card.selected { border-color: var(--brown-deep); background: var(--cream); }
+.role-icon { font-size: 22px; margin-bottom: 5px; }
+.role-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.role-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── APP SHELL ── */
+#app { display: none; height: 100vh; flex-direction: column; }
+.topbar { height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; border-bottom: 0.5px solid var(--border); background: var(--white); flex-shrink: 0; z-index: 10; }
+.topbar-left { display: flex; align-items: center; gap: 1rem; }
+.topbar-logo { font-size: 15px; font-weight: 700; color: var(--brown-deep); letter-spacing: -0.4px; }
+.topbar-logo span { color: var(--brown-light); font-weight: 400; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.chip { font-size: 11px; padding: 3px 9px; border-radius: 12px; background: var(--cream); color: var(--brown); border: 0.5px solid var(--cream-dark); font-weight: 500; }
+.chip.counselor-chip { background: var(--sage); color: var(--sage-text); border-color: var(--sage-dark); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--cream-mid); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--brown); cursor: pointer; }
+.student-switcher { display: none; }
+.student-switcher.visible { display: flex; align-items: center; gap: 6px; }
+.student-select { font-family: var(--font); font-size: 12px; padding: 5px 10px; border: 0.5px solid var(--border-mid); border-radius: var(--r-md); background: var(--white); color: var(--text); outline: none; cursor: pointer; }
+.app-body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar { width: var(--sidebar-w); flex-shrink: 0; border-right: 0.5px solid var(--border); background: var(--white); display: flex; flex-direction: column; overflow-y: auto; padding: 0.9rem 0.65rem 1.25rem; }
+.sb-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); padding: 0 8px; margin-bottom: 3px; margin-top: 16px; font-weight: 500; }
+.sb-section:first-child { margin-top: 2px; }
+.sb-item { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: var(--r-sm); font-size: 13px; color: var(--text-muted); cursor: pointer; transition: background 0.1s, color 0.1s; user-select: none; }
+.sb-item:hover { background: var(--cream); color: var(--text); }
+.sb-item.active { background: var(--cream-mid); color: var(--brown-deep); font-weight: 500; }
+.sb-item svg { width: 14px; height: 14px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sb-badge { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 9px; background: var(--cream-mid); color: var(--brown); font-weight: 600; }
+.sb-badge.alert { background: var(--amber); color: var(--amber-text); }
+.sidebar-footer { margin-top: auto; padding-top: 0.9rem; border-top: 0.5px solid var(--border); }
+
+/* ── COUNSELOR SIDEBAR LAYER ── */
+.counselor-section { background: var(--sage); border-radius: var(--r-md); margin: 8px 4px; padding: 8px; }
+.counselor-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--sage-text); font-weight: 600; padding: 0 4px; margin-bottom: 4px; }
+
+/* ── MAIN ── */
+.main { flex: 1; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── COMPONENTS ── */
+.card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1.25rem; }
+.btn { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font); font-size: 12px; font-weight: 500; padding: 6px 13px; border-radius: var(--r-xl); border: 0.5px solid var(--border-mid); background: var(--white); color: var(--text); cursor: pointer; transition: background 0.1s; text-decoration: none; white-space: nowrap; }
+.btn:hover { background: var(--cream); }
+.btn.primary { background: var(--brown-deep); color: var(--cream); border-color: var(--brown-deep); }
+.btn.primary:hover { background: #2C1E12; }
+.btn.sm { font-size: 11px; padding: 4px 10px; }
+.btn.danger { color: var(--danger); border-color: rgba(192,57,43,0.18); }
+.btn.danger:hover { background: var(--danger-bg); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover { background: var(--cream); border-color: var(--border); }
+.btn-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 11px; background: var(--cream-mid); color: var(--brown); }
+.status-pill { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 11px; }
+.status-pill.not-started { background: #F0EDEA; color: var(--text-muted); }
+.status-pill.in-progress, .status-pill.outline, .status-pill.draft-1, .status-pill.draft-2, .status-pill.revising { background: var(--amber); color: var(--amber-text); }
+.status-pill.done, .status-pill.final { background: var(--sage); color: var(--sage-text); }
+.status-pill.submitted { background: #E3F2FD; color: #1565C0; }
+.status-pill.accepted { background: #E8F5E9; color: #2E7D32; }
+.status-pill.waitlisted { background: var(--amber); color: var(--amber-text); }
+.status-pill.rejected { background: var(--danger-bg); color: var(--danger); }
+.divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
+.empty-state { text-align: center; padding: 2.5rem 2rem; }
+.empty-icon { font-size: 28px; margin-bottom: 0.6rem; opacity: 0.35; }
+.empty-title { font-size: 13px; font-weight: 500; color: var(--text-mid); margin-bottom: 3px; }
+.empty-desc { font-size: 12px; color: var(--text-muted); }
+.page-wrap { padding: 2rem 2.5rem; max-width: 860px; }
+.page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); margin-bottom: 3px; }
+.page-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 1.75rem; }
+
+/* ── MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(30,20,10,0.3); z-index: 1000; align-items: center; justify-content: center; padding: 2rem; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--r-xl); padding: 1.75rem; width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; border: 0.5px solid var(--cream-dark); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.modal-title { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+.modal-close { font-size: 20px; color: var(--text-muted); cursor: pointer; line-height: 1; padding: 2px; }
+.modal-close:hover { color: var(--text); }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--brown-deep); color: var(--cream); font-size: 12px; font-weight: 500; padding: 9px 18px; border-radius: 18px; opacity: 0; transition: opacity 0.18s, transform 0.18s; z-index: 2000; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════════
+   DASHBOARD — daily briefing
+══════════════════════════════════════════ */
+.dash-wrap { padding: 2rem 2.5rem; max-width: 860px; }
+.dash-greeting { font-size: 22px; font-weight: 600; letter-spacing: -0.6px; color: var(--text); margin-bottom: 3px; }
+.dash-date { font-size: 12px; color: var(--text-muted); margin-bottom: 2rem; }
+
+.pickup-card { background: var(--cream); border: 0.5px solid var(--cream-dark); border-radius: var(--r-xl); padding: 1.5rem; margin-bottom: 1.25rem; cursor: pointer; transition: border-color 0.15s; }
+.pickup-card:hover { border-color: var(--brown-light); }
+.pickup-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--brown-light); font-weight: 600; margin-bottom: 10px; }
+.pickup-essay { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; margin-bottom: 4px; }
+.pickup-status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.pickup-hint { font-size: 13px; color: var(--text-muted); line-height: 1.55; border-left: 2px solid var(--cream-dark); padding-left: 10px; font-style: italic; }
+.pickup-action { font-size: 12px; color: var(--brown); font-weight: 500; margin-top: 10px; }
+
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+.dash-card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1.1rem; }
+.dash-card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 0.9rem; }
+
+.dash-action-row { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+.dash-action-row:last-child { border-bottom: none; }
+.dash-check { width: 15px; height: 15px; border: 1.5px solid var(--cream-dark); border-radius: 4px; flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+.dash-check.checked { background: var(--brown-deep); border-color: var(--brown-deep); }
+.dash-check.checked::after { content: "✓"; font-size: 9px; color: white; font-weight: 700; }
+.dash-action-text { font-size: 12px; color: var(--text); flex: 1; line-height: 1.45; }
+.dash-action-text.checked { text-decoration: line-through; color: var(--text-muted); }
+.dash-action-context { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.dash-dl-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+.dash-dl-row:last-child { border-bottom: none; }
+.dash-dl-name { font-size: 12px; font-weight: 500; color: var(--text); }
+.dash-dl-sub { font-size: 11px; color: var(--text-muted); }
+.dash-dl-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 9px; flex-shrink: 0; }
+.dash-dl-badge.urgent { background: var(--danger-bg); color: var(--danger); }
+.dash-dl-badge.soon { background: var(--amber); color: var(--amber-text); }
+.dash-dl-badge.ok { background: var(--sage); color: var(--sage-text); }
+
+.narrative-pulse { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1.1rem; }
+.np-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 0.75rem; }
+.np-thread { font-size: 13px; color: var(--text); line-height: 1.65; }
+.np-thread em { color: var(--text-muted); font-style: normal; }
+
+/* counselor dash additions */
+.students-overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+.student-card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1rem; cursor: pointer; transition: border-color 0.15s; }
+.student-card:hover { border-color: var(--border-mid); }
+.student-card.active-student { border-color: var(--brown-light); background: var(--cream); }
+.sc-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.sc-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.sc-flags { display: flex; gap: 5px; flex-wrap: wrap; }
+.sc-flag { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 8px; }
+.sc-flag.needs-attention { background: var(--danger-bg); color: var(--danger); }
+.sc-flag.on-track { background: var(--sage); color: var(--sage-text); }
+.sc-flag.feedback-pending { background: var(--amber); color: var(--amber-text); }
+
+/* ══════════════════════════════════════════
+   RE-ENTRY SCREEN
+══════════════════════════════════════════ */
+.reentry-overlay { display: none; position: fixed; inset: 0; background: rgba(245,239,230,0.97); z-index: 500; align-items: center; justify-content: center; padding: 2rem; }
+.reentry-overlay.open { display: flex; }
+.reentry-card { background: var(--white); border: 0.5px solid var(--cream-dark); border-radius: var(--r-xl); padding: 2.5rem; max-width: 540px; width: 100%; }
+.re-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--brown-light); font-weight: 600; margin-bottom: 1rem; }
+.re-essay-name { font-size: 20px; font-weight: 600; color: var(--text); letter-spacing: -0.5px; margin-bottom: 0.4rem; }
+.re-last-edited { font-size: 12px; color: var(--text-muted); margin-bottom: 1.5rem; }
+.re-section { margin-bottom: 1.25rem; }
+.re-section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--brown-light); font-weight: 600; margin-bottom: 6px; }
+.re-section-val { font-size: 13px; color: var(--text); line-height: 1.6; }
+.re-section-val.last-line { font-style: italic; color: var(--text-muted); border-left: 2px solid var(--cream-dark); padding-left: 10px; }
+.re-section-val.feedback { background: var(--sage); border-radius: var(--r-md); padding: 10px 12px; font-style: italic; color: var(--sage-text); }
+.re-question-box { background: var(--cream); border-radius: var(--r-lg); padding: 1.25rem; margin-bottom: 1.5rem; border: 0.5px solid var(--cream-dark); }
+.re-question-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--brown-light); font-weight: 600; margin-bottom: 8px; }
+.re-question-text { font-size: 14px; color: var(--text); line-height: 1.6; font-weight: 500; }
+
+/* ══════════════════════════════════════════
+   ESSAYS — three panel
+══════════════════════════════════════════ */
+.essays-shell { display: flex; height: calc(100vh - var(--topbar-h)); }
+.essay-list-panel { width: 280px; flex-shrink: 0; border-right: 0.5px solid var(--border); display: flex; flex-direction: column; background: var(--white); }
+.elp-header { padding: 1rem; border-bottom: 0.5px solid var(--border); }
+.elp-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.essay-list-items { flex: 1; overflow-y: auto; }
+.essay-list-item { padding: 10px 1rem; border-bottom: 0.5px solid var(--border); cursor: pointer; transition: background 0.1s; }
+.essay-list-item:hover { background: var(--cream); }
+.essay-list-item.active { background: var(--cream-mid); }
+.eli-school { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.eli-type { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+.eli-bottom { display: flex; align-items: center; justify-content: space-between; }
+.eli-wc { font-size: 11px; color: var(--text-muted); }
+
+.essay-editor-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.eep-header { padding: 1rem 1.25rem; border-bottom: 0.5px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
+.eep-school { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.2px; }
+.eep-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.eep-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.eep-body { flex: 1; padding: 1.25rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+.prompt-box { background: var(--cream); border-radius: var(--r-md); padding: 10px 12px; font-size: 12px; color: var(--text-muted); line-height: 1.6; border-left: 2px solid var(--cream-dark); font-style: italic; flex-shrink: 0; }
+.essay-textarea { flex: 1; min-height: 260px; font-family: var(--font); font-size: 14px; line-height: 1.8; color: var(--text); background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1.25rem; resize: none; outline: none; transition: border-color 0.15s; }
+.essay-textarea:focus { border-color: var(--brown-light); }
+.eep-footer { padding: 10px 1.25rem; border-top: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: var(--white); }
+.wc-display { font-size: 12px; color: var(--text-muted); }
+.wc-display span { font-weight: 600; color: var(--text); }
+.wc-display span.over { color: var(--danger); }
+
+.essay-context-panel { width: 260px; flex-shrink: 0; border-left: 0.5px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; background: var(--white); }
+.ecp-section { padding: 1rem; border-bottom: 0.5px solid var(--border); }
+.ecp-section:last-child { border-bottom: none; }
+.ecp-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+.ecp-thread-item { margin-bottom: 7px; }
+.ecp-thread-key { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--brown-light); font-weight: 600; margin-bottom: 3px; }
+.ecp-thread-val { font-size: 12px; color: var(--text); line-height: 1.5; }
+.ecp-essay-mini { display: flex; align-items: center; gap: 7px; padding: 5px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+.ecp-essay-mini:last-child { border-bottom: none; }
+.ecp-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ecp-essay-name { font-size: 12px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecp-essay-name.active { color: var(--text); font-weight: 500; }
+.ecp-dl-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--border); }
+.ecp-dl-row:last-child { border-bottom: none; }
+.ecp-dl-school { font-size: 12px; color: var(--text); }
+.ecp-dl-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 8px; }
+.sync-bar { padding: 8px 1rem; border-top: 0.5px solid var(--border); display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+/* ── language register flag ── */
+.register-flag { background: var(--amber); border-radius: var(--r-md); padding: 9px 11px; margin-bottom: 8px; }
+.rf-title { font-size: 11px; font-weight: 600; color: var(--amber-text); margin-bottom: 3px; }
+.rf-text { font-size: 11px; color: var(--amber-text); line-height: 1.5; }
+
+/* counselor feedback panel */
+.feedback-panel { background: var(--sage); border-radius: var(--r-md); padding: 10px 12px; }
+.fp-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--sage-text); font-weight: 600; margin-bottom: 6px; }
+.fp-text { font-size: 12px; color: var(--sage-text); line-height: 1.55; font-style: italic; }
+.fp-textarea { width: 100%; font-family: var(--font); font-size: 12px; color: var(--text); background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; resize: none; outline: none; min-height: 70px; line-height: 1.55; }
+
+/* ══════════════════════════════════════════
+   NARRATIVE
+══════════════════════════════════════════ */
+.narrative-interview { max-width: 620px; }
+.ni-progress { display: flex; gap: 4px; margin-bottom: 2rem; }
+.ni-dot { height: 3px; border-radius: 2px; flex: 1; background: var(--cream-mid); transition: background 0.3s; }
+.ni-dot.done { background: var(--brown-deep); }
+.ni-question { font-size: 18px; font-weight: 500; color: var(--text); letter-spacing: -0.4px; line-height: 1.4; margin-bottom: 0.5rem; }
+.ni-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.55; }
+.ni-field { width: 100%; font-family: var(--font); font-size: 14px; color: var(--text); background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; resize: vertical; outline: none; line-height: 1.65; transition: border-color 0.15s; min-height: 90px; }
+.ni-field:focus { border-color: var(--brown-light); }
+.ni-field.single-line { min-height: auto; resize: none; }
+.ni-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
+.ni-step-label { font-size: 11px; color: var(--text-muted); }
+.thread-preview { background: var(--cream); border-radius: var(--r-xl); padding: 1.5rem; margin-top: 2rem; border: 0.5px solid var(--cream-dark); }
+.tp-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--brown-light); font-weight: 600; margin-bottom: 10px; }
+.tp-item { margin-bottom: 10px; }
+.tp-key { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--brown-light); font-weight: 600; margin-bottom: 3px; }
+.tp-val { font-size: 13px; color: var(--text); line-height: 1.6; }
+.tp-val.empty { color: var(--text-muted); font-style: italic; }
+.tag-input-wrap { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding: 7px 11px; border: 0.5px solid var(--border); border-radius: var(--r-md); background: var(--white); min-height: 40px; cursor: text; }
+.tag-input-wrap:focus-within { border-color: var(--brown-light); }
+.tag-x { cursor: pointer; color: var(--brown-light); margin-left: 3px; }
+.tag-input-inline { border: none; outline: none; font-family: var(--font); font-size: 13px; color: var(--text); min-width: 70px; background: transparent; }
+
+/* ══════════════════════════════════════════
+   SCHOOLS / DEADLINES / ACTIONS / ACTIVITIES / SESSIONS
+══════════════════════════════════════════ */
+.school-card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 0.9rem 1.1rem; display: flex; align-items: center; gap: 0.9rem; transition: border-color 0.15s; margin-bottom: 8px; }
+.school-card:hover { border-color: var(--border-mid); }
+.school-rank { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 20px; flex-shrink: 0; }
+.school-info { flex: 1; min-width: 0; }
+.school-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.school-detail { font-size: 11px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.school-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.school-type { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 9px; }
+.school-type.ed { background: #FDE8E8; color: #A93226; }
+.school-type.ea { background: var(--amber); color: var(--amber-text); }
+.school-type.rd { background: var(--sage); color: var(--sage-text); }
+
+.deadline-item { display: flex; align-items: center; gap: 0.9rem; padding: 0.8rem 1rem; background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-md); margin-bottom: 7px; }
+.deadline-bar { width: 3px; height: 32px; border-radius: 2px; flex-shrink: 0; }
+.deadline-info { flex: 1; }
+.deadline-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.deadline-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.dl-days { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 9px; flex-shrink: 0; }
+.dl-days.urgent { background: var(--danger-bg); color: var(--danger); }
+.dl-days.soon { background: var(--amber); color: var(--amber-text); }
+.dl-days.ok { background: var(--sage); color: var(--sage-text); }
+.dl-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin: 1.25rem 0 0.6rem; }
+.dl-section-title:first-child { margin-top: 0; }
+
+.action-item { display: flex; align-items: flex-start; gap: 10px; padding: 0.85rem 1rem; background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-md); margin-bottom: 7px; }
+.action-item.done-item { opacity: 0.5; }
+.ai-check { width: 17px; height: 17px; border: 1.5px solid var(--cream-dark); border-radius: 4px; flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+.ai-check.done { background: var(--brown-deep); border-color: var(--brown-deep); }
+.ai-check.done::after { content: "✓"; font-size: 9px; color: white; font-weight: 700; }
+.ai-body { flex: 1; }
+.ai-task { font-size: 13px; color: var(--text); }
+.ai-task.done { text-decoration: line-through; color: var(--text-muted); }
+.ai-context { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ai-who { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 7px; }
+.ai-who.student { background: var(--rose); color: var(--rose-text); }
+.ai-who.counselor { background: var(--sage); color: var(--sage-text); }
+
+.activity-card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-bottom: 8px; }
+.act-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.act-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.act-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+.act-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; }
+.act-charcount { font-size: 11px; color: var(--text-muted); }
+.act-charcount.over { color: var(--danger); }
+
+.session-item { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+.session-item:hover { border-color: var(--border-mid); }
+.session-date { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+.session-summary { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+.session-next { font-size: 12px; color: var(--text-muted); }
+
+/* ══════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════ */
+.settings-section-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 0.9rem; padding-bottom: 0.65rem; border-bottom: 0.5px solid var(--border); }
+.settings-row { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0; border-bottom: 0.5px solid var(--border); }
+.settings-row:last-child { border-bottom: none; }
+.settings-key { font-size: 13px; color: var(--text); }
+.toggle { width: 34px; height: 19px; background: var(--cream-dark); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--brown-deep); }
+.toggle-knob { width: 15px; height: 15px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.2s; }
+.toggle.on .toggle-knob { transform: translateX(15px); }
+</style>
+</head>
+<body>
+
+<!-- ══ ONBOARDING ══ -->
+<div id="onboarding">
+  <div class="ob-card">
+    <div class="ob-logo">clove<span>.</span></div>
+    <div class="ob-tagline">your story, grown from the ground up.</div>
+    <div class="ob-progress">
+      <div class="ob-dot" id="p1"></div>
+      <div class="ob-dot" id="p2"></div>
+      <div class="ob-dot" id="p3"></div>
+    </div>
+    <div class="ob-step active" id="step1">
+      <div class="ob-title">welcome to clove.</div>
+      <div class="ob-sub">who are you? we'll set things up differently for each role.</div>
+      <div class="role-grid">
+        <div class="role-card" onclick="selectRole('student',this)"><div class="role-icon">🎓</div><div class="role-name">student</div><div class="role-desc">applying to college</div></div>
+        <div class="role-card" onclick="selectRole('counselor',this)"><div class="role-icon">🌿</div><div class="role-name">counselor</div><div class="role-desc">i guide students</div></div>
+      </div>
+      <button class="btn-full" id="step1-btn" onclick="nextStep(2)" disabled style="opacity:0.5">continue</button>
+    </div>
+    <div class="ob-step" id="step2">
+      <div class="ob-title">a little about you.</div>
+      <div class="ob-sub">just the basics.</div>
+      <label class="field-label">your name</label>
+      <input class="field-input" id="ob-name" placeholder="Katherine Zhang" />
+      <label class="field-label">email</label>
+      <input class="field-input" id="ob-email" type="email" placeholder="you@email.com" />
+      <div id="student-yr">
+        <label class="field-label">graduating year</label>
+        <select class="field-select" id="ob-year"><option>2026</option><option>2027</option><option>2028</option></select>
+      </div>
+      <button class="btn-full" onclick="nextStep(3)">continue</button>
+    </div>
+    <div class="ob-step" id="step3">
+      <div class="ob-title">what drives you?</div>
+      <div class="ob-sub">one sentence is perfect. this becomes the seed of everything.</div>
+      <label class="field-label">the question you keep coming back to</label>
+      <textarea class="field-textarea" id="ob-passion" placeholder="e.g. how do societies preserve or erase the voices of women who exist outside dominant systems of power?"></textarea>
+      <label class="field-label">one word that describes how you move through the world</label>
+      <input class="field-input" id="ob-word" placeholder="e.g. archivist, builder, questioner..." />
+      <button class="btn-full" onclick="finishOnboarding()">let's begin →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RE-ENTRY SCREEN ══ -->
+<div class="reentry-overlay" id="reentry-overlay">
+  <div class="reentry-card">
+    <div class="re-eyebrow">welcome back</div>
+    <div class="re-essay-name" id="re-essay-name">—</div>
+    <div class="re-last-edited" id="re-last-edited">—</div>
+    <div class="re-section">
+      <div class="re-section-label">where you left off</div>
+      <div class="re-section-val last-line" id="re-last-line">—</div>
+    </div>
+    <div class="re-section" id="re-feedback-wrap" style="display:none">
+      <div class="re-section-label">your counselor said</div>
+      <div class="re-section-val feedback" id="re-feedback">—</div>
+    </div>
+    <div class="re-section">
+      <div class="re-section-label">your thread</div>
+      <div class="re-section-val" id="re-thread">—</div>
+    </div>
+    <div class="re-question-box">
+      <div class="re-question-label">one question before you start</div>
+      <div class="re-question-text" id="re-question">—</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" onclick="enterEssay()" style="flex:1;justify-content:center;">i'm ready to write</button>
+      <button class="btn ghost" onclick="closeReentry()">skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">clove<span>.</span></div>
+      <div id="breadcrumb" style="font-size:13px;color:var(--text-muted);"></div>
+    </div>
+    <div class="topbar-right">
+      <div class="student-switcher" id="student-switcher">
+        <span style="font-size:12px;color:var(--text-muted);">viewing:</span>
+        <select class="student-select" id="student-select" onchange="switchStudent()">
+          <option value="self">my profile</option>
+        </select>
+      </div>
+      <span class="chip" id="role-chip">student</span>
+      <div class="avatar" id="top-avatar" onclick="navigate('settings')">K</div>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <div class="sidebar">
+      <div class="sb-section">overview</div>
+      <div class="sb-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        dashboard
+      </div>
+      <div class="sb-section">story</div>
+      <div class="sb-item" data-page="narrative" onclick="navigate('narrative')">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        narrative thread
+      </div>
+      <div class="sb-item" data-page="essays" onclick="navigate('essays')">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        essays
+        <span class="sb-badge" id="essay-badge">0</span>
+      </div>
+      <div class="sb-item" data-page="activities" onclick="navigate('activities')">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        activities
+      </div>
+      <div class="sb-section">application</div>
+      <div class="sb-item" data-page="schools" onclick="navigate('schools')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        school list
+        <span class="sb-badge" id="school-badge">0</span>
+      </div>
+      <div class="sb-item" data-page="deadlines" onclick="navigate('deadlines')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        deadlines
+      </div>
+      <div class="sb-item" data-page="actions" onclick="navigate('actions')">
+        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        action items
+        <span class="sb-badge" id="action-badge">0</span>
+      </div>
+      <div class="sb-section">counselor</div>
+      <div class="sb-item" data-page="sessions" onclick="navigate('sessions')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        session notes
+      </div>
+      <div class="sidebar-footer">
+        <div class="sb-item" data-page="settings" onclick="navigate('settings')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          settings
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="dash-wrap">
+          <div class="dash-greeting" id="dash-greeting">good morning.</div>
+          <div class="dash-date" id="dash-date"></div>
+          <!-- pickup card -->
+          <div class="pickup-card" id="pickup-card" onclick="pickupEssay()">
+            <div class="pickup-eyebrow">pick up where you left off</div>
+            <div class="pickup-essay" id="pickup-essay-name">—</div>
+            <div class="pickup-status" id="pickup-status"></div>
+            <div class="pickup-hint" id="pickup-hint">—</div>
+            <div class="pickup-action">open essay →</div>
+          </div>
+          <div class="dash-grid">
+            <div class="dash-card">
+              <div class="dash-card-title">open tasks</div>
+              <div id="dash-actions"></div>
+            </div>
+            <div class="dash-card">
+              <div class="dash-card-title">upcoming deadlines</div>
+              <div id="dash-deadlines"></div>
+            </div>
+          </div>
+          <div class="narrative-pulse" id="dash-narrative"></div>
+          <!-- counselor: students overview -->
+          <div id="counselor-students-section" style="display:none;margin-top:1.25rem;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:0.75rem;letter-spacing:-0.2px;">your students</div>
+            <div class="students-overview" id="students-overview"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NARRATIVE -->
+      <div class="page" id="page-narrative">
+        <div class="page-wrap">
+          <div class="page-title">narrative thread</div>
+          <div class="page-sub">build this before you write a single essay word. answer one question at a time.</div>
+          <div class="thread-preview" id="thread-preview">
+            <div class="tp-label">your thread, so far</div>
+            <div id="tp-content"><div class="tp-val empty">answer the questions below to see your story emerge.</div></div>
+          </div>
+          <div style="height:1.5rem;"></div>
+          <div class="narrative-interview" id="ni-wrap">
+            <div class="ni-progress" id="ni-progress"></div>
+            <div class="ni-question" id="ni-q"></div>
+            <div class="ni-hint" id="ni-hint"></div>
+            <textarea class="ni-field" id="ni-answer" placeholder="type your answer here..."></textarea>
+            <div class="ni-nav">
+              <span class="ni-step-label" id="ni-step-label"></span>
+              <div class="btn-row">
+                <button class="btn ghost" onclick="niPrev()" id="ni-prev-btn">← back</button>
+                <button class="btn primary" onclick="niNext()" id="ni-next-btn">next →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESSAYS -->
+      <div class="page" id="page-essays">
+        <div class="essays-shell">
+          <!-- list panel -->
+          <div class="essay-list-panel">
+            <div class="elp-header">
+              <div class="elp-title">essays</div>
+              <button class="btn primary sm" onclick="openModal('essay-modal')">+ add</button>
+            </div>
+            <div class="essay-list-items" id="essay-list-items"></div>
+          </div>
+          <!-- editor panel -->
+          <div class="essay-editor-panel" id="essay-editor-panel">
+            <div id="essay-empty-state" style="display:flex;align-items:center;justify-content:center;height:100%;">
+              <div class="empty-state"><div class="empty-icon">✍️</div><div class="empty-title">select an essay</div><div class="empty-desc">or add one to get started</div></div>
+            </div>
+            <div id="essay-editor-wrap" style="display:none;flex:1;display:none;flex-direction:column;">
+              <div class="eep-header">
+                <div>
+                  <div class="eep-school" id="ee-school">—</div>
+                  <div class="eep-meta" id="ee-meta">—</div>
+                </div>
+                <div class="eep-controls">
+                  <select id="ee-status-sel" class="field-select" style="margin-bottom:0;font-size:11px;padding:4px 8px;width:auto;" onchange="updateEssayStatus()"></select>
+                  <button class="btn sm primary" onclick="saveEssayContent()">save</button>
+                </div>
+              </div>
+              <div class="eep-body">
+                <div class="prompt-box" id="ee-prompt-box" style="display:none;"></div>
+                <textarea class="essay-textarea" id="ee-content" placeholder="start writing here..."></textarea>
+              </div>
+              <div class="eep-footer">
+                <div class="wc-display"><span id="ee-wc">0</span> / <span id="ee-limit-disp">—</span> words</div>
+                <div class="btn-row">
+                  <button class="btn sm ghost">sync to drive</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- context panel -->
+          <div class="essay-context-panel">
+            <div class="ecp-section">
+              <div class="ecp-label">your thread</div>
+              <div id="ecp-thread-content"><div style="font-size:12px;color:var(--text-muted);font-style:italic;">build your narrative to see it here</div></div>
+            </div>
+            <div class="ecp-section">
+              <div class="ecp-label">all essays</div>
+              <div id="ecp-essay-list"></div>
+            </div>
+            <div class="ecp-section" id="ecp-register-wrap" style="display:none;">
+              <div class="ecp-label">language check</div>
+              <div class="register-flag" id="ecp-register-flag"></div>
+            </div>
+            <div class="ecp-section" id="ecp-feedback-wrap" style="display:none;">
+              <div class="ecp-label" id="ecp-feedback-label">counselor feedback</div>
+              <div id="ecp-feedback-content"></div>
+            </div>
+            <div class="ecp-section">
+              <div class="ecp-label">deadlines</div>
+              <div id="ecp-deadlines"></div>
+            </div>
+            <div class="sync-bar">
+              <div class="sync-dot"></div>
+              <span id="sync-text">not yet synced</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITIES -->
+      <div class="page" id="page-activities">
+        <div class="page-wrap">
+          <div class="page-title">activities</div>
+          <div class="page-sub">up to 10 common app activities. each should reinforce your narrative thread.</div>
+          <div class="btn-row" style="margin-bottom:1.25rem;"><button class="btn primary" onclick="openModal('activity-modal')">+ add activity</button></div>
+          <div id="activity-list"></div>
+        </div>
+      </div>
+
+      <!-- SCHOOLS -->
+      <div class="page" id="page-schools">
+        <div class="page-wrap">
+          <div class="page-title">school list</div>
+          <div class="page-sub">every school, deadline, and why it fits your story.</div>
+          <div class="btn-row" style="margin-bottom:1.25rem;">
+            <button class="btn primary" onclick="openModal('school-modal')">+ add school</button>
+            <button class="btn" onclick="filterSchools('all')">all</button>
+            <button class="btn" onclick="filterSchools('ED')">ED</button>
+            <button class="btn" onclick="filterSchools('EA')">EA</button>
+            <button class="btn" onclick="filterSchools('RD')">RD</button>
+          </div>
+          <div id="school-list"></div>
+        </div>
+      </div>
+
+      <!-- DEADLINES -->
+      <div class="page" id="page-deadlines">
+        <div class="page-wrap">
+          <div class="page-title">deadlines</div>
+          <div class="page-sub">every deadline, sorted by urgency.</div>
+          <div id="deadlines-content"></div>
+        </div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="page" id="page-actions">
+        <div class="page-wrap">
+          <div class="page-title">action items</div>
+          <div class="page-sub">everything outstanding. reviewed every session.</div>
+          <div class="btn-row" style="margin-bottom:1.25rem;">
+            <button class="btn primary" onclick="openModal('action-modal')">+ add task</button>
+            <button class="btn" onclick="renderActions('open')">open</button>
+            <button class="btn" onclick="renderActions('done')">done</button>
+            <button class="btn" onclick="renderActions('all')">all</button>
+          </div>
+          <div id="action-list"></div>
+        </div>
+      </div>
+
+      <!-- SESSIONS -->
+      <div class="page" id="page-sessions">
+        <div class="page-wrap">
+          <div class="page-title">session notes</div>
+          <div class="page-sub">every session logged. nothing forgotten.</div>
+          <div class="btn-row" style="margin-bottom:1.25rem;"><button class="btn primary" onclick="openModal('session-modal')">+ new session</button></div>
+          <div id="session-list"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="page-wrap">
+          <div class="page-title">settings</div>
+          <div class="page-sub">your profile and preferences.</div>
+          <div class="card">
+            <div class="settings-section-title">profile</div>
+            <div style="margin-bottom:0.9rem;"><label class="field-label">name</label><input class="field-input" id="s-name" style="margin-bottom:0;" /></div>
+            <div style="margin-bottom:0.9rem;"><label class="field-label">email</label><input class="field-input" id="s-email" type="email" style="margin-bottom:0;" /></div>
+            <div style="margin-bottom:1rem;"><label class="field-label">role</label><select class="field-select" id="s-role" style="margin-bottom:0;"><option value="student">student</option><option value="counselor">counselor</option></select></div>
+            <button class="btn primary" onclick="saveSettings()">save changes</button>
+            <div class="divider"></div>
+            <div class="settings-section-title">preferences</div>
+            <div class="settings-row"><div class="settings-key">deadline reminders</div><div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-knob"></div></div></div>
+            <div class="settings-row"><div class="settings-key">counselor can view essays</div><div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-knob"></div></div></div>
+            <div class="settings-row"><div class="settings-key">language register check</div><div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-knob"></div></div></div>
+            <div class="divider"></div>
+            <button class="btn danger" onclick="if(confirm('reset everything?'))resetAll()">reset all data</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="essay-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">add essay</div><span class="modal-close" onclick="closeModal('essay-modal')">×</span></div>
+    <label class="field-label">school</label><input class="field-input" id="em-school" placeholder="e.g. Harvard, Common App..." />
+    <label class="field-label">type</label>
+    <select class="field-select" id="em-type"><option value="Common App">Common App — main essay</option><option value="Supplement">supplement</option><option value="Activity">activity description</option><option value="Additional">additional info</option></select>
+    <label class="field-label">prompt</label><textarea class="field-textarea" id="em-prompt" placeholder="paste the prompt here..."></textarea>
+    <label class="field-label">word limit</label><input class="field-input" id="em-limit" type="number" placeholder="650" />
+    <button class="btn-full" onclick="addEssay()">add essay</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="school-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">add school</div><span class="modal-close" onclick="closeModal('school-modal')">×</span></div>
+    <label class="field-label">school name</label><input class="field-input" id="sm-name" placeholder="e.g. Harvard University" />
+    <label class="field-label">application type</label>
+    <select class="field-select" id="sm-type"><option value="ED">Early Decision (ED)</option><option value="EA">Early Action (EA)</option><option value="RD">Regular Decision (RD)</option></select>
+    <label class="field-label">deadline</label><input class="field-input" id="sm-deadline" type="date" />
+    <label class="field-label">program / major</label><input class="field-input" id="sm-major" placeholder="e.g. History, Women's Studies..." />
+    <label class="field-label">why this school fits your narrative</label><textarea class="field-textarea" id="sm-why" placeholder="what's the specific angle for this school?"></textarea>
+    <button class="btn-full" onclick="addSchool()">add school</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="action-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">add task</div><span class="modal-close" onclick="closeModal('action-modal')">×</span></div>
+    <label class="field-label">task</label><input class="field-input" id="am-task" placeholder="e.g. finish harvard supplement draft 2..." />
+    <label class="field-label">who owns it?</label>
+    <select class="field-select" id="am-who"><option value="student">student</option><option value="counselor">counselor</option></select>
+    <label class="field-label">related essay (optional)</label>
+    <select class="field-select" id="am-essay"><option value="">none</option></select>
+    <label class="field-label">due date</label><input class="field-input" id="am-due" type="date" />
+    <button class="btn-full" onclick="addAction()">add task</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="activity-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">add activity</div><span class="modal-close" onclick="closeModal('activity-modal')">×</span></div>
+    <label class="field-label">activity name</label><input class="field-input" id="act-name" placeholder="e.g. Founder, Hermanity" />
+    <label class="field-label">category</label>
+    <select class="field-select" id="act-cat"><option>Research</option><option>Leadership</option><option>Arts / Creative</option><option>Community Service</option><option>Athletics</option><option>Work / Internship</option><option>Writing / Publication</option><option>Other</option></select>
+    <label class="field-label">description (150 char max on Common App)</label>
+    <textarea class="field-textarea" id="act-desc" maxlength="200" placeholder="what did you do and what was the impact?"></textarea>
+    <label class="field-label">narrative fit</label>
+    <select class="field-select" id="act-fit"><option value="strong">strong — core to my story</option><option value="ok">ok — supports the narrative</option><option value="weak">weak — doesn't connect clearly</option></select>
+    <button class="btn-full" onclick="addActivity()">add activity</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="session-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">new session</div><span class="modal-close" onclick="closeModal('session-modal')">×</span></div>
+    <label class="field-label">date</label><input class="field-input" id="ses-date" type="date" />
+    <label class="field-label">what was discussed?</label><textarea class="field-textarea" id="ses-discussed" placeholder="summary of the session..."></textarea>
+    <label class="field-label">key decisions made</label><textarea class="field-textarea" id="ses-decisions" placeholder="what was decided?"></textarea>
+    <label class="field-label">next steps / action items</label><textarea class="field-textarea" id="ses-next" placeholder="what happens before next session?"></textarea>
+    <button class="btn-full" onclick="addSession()">save session</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ STATE ══
+const DEFAULT_STATE = () => ({
+  user: null,
+  narrative: { question:'', throughline:'', origin:'', themes:[], feeling:'' },
+  essays: [], schools: [], activities: [], actions: [], sessions: [],
+  lastEssayIdx: null
+});
+
+let S = JSON.parse(localStorage.getItem('clove_v2') || 'null') || DEFAULT_STATE();
+let themes = [...(S.narrative.themes || [])];
+let currentEssayIdx = null;
+let niStep = 0;
+const NI_QUESTIONS = [
+  { q: "what question do you keep coming back to?", hint: "the thing that drives your research, your projects, your curiosity. it doesn't have to be perfectly worded.", key: "question", big: true },
+  { q: "how do you move through the world?", hint: "one to three words or roles. e.g. researcher · archivist · storyteller", key: "throughline", big: false },
+  { q: "when did this all start?", hint: "the origin moment. a specific scene, not a general statement. what were you doing? what did you notice?", key: "origin", big: true },
+  { q: "what themes keep appearing in everything you do?", hint: "press Enter after each theme to add it as a tag.", key: "themes", big: false, isTags: true },
+  { q: "what should an admissions reader feel after reading your full application?", hint: "not what they should think — what they should feel. 'that she was always going to do this. she couldn't have been anyone else.'", key: "feeling", big: true }
+];
+const RESUME_WORDS = ['developed','led','founded','managed','created','organized','designed','implemented','achieved','built','launched','executed','coordinated','supervised','directed','established','produced','conducted','initiated'];
+const SIDEWAYS_QUESTIONS = [
+  "what would you have done if this project hadn't existed?",
+  "who would be surprised to learn you did this?",
+  "what's the part of this you've never told anyone?",
+  "if you had to explain why this matters to a skeptic, what would you say?",
+  "what did you almost do instead?",
+  "what did this cost you — not financially, but personally?",
+  "where in this story did you feel most like yourself?",
+  "what's the question this experience left you with that you still haven't answered?"
+];
+
+function save() { S.narrative.themes = themes; localStorage.setItem('clove_v2', JSON.stringify(S)); }
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2100); }
+function wc(text) { return (text||'').trim().split(/\s+/).filter(Boolean).length; }
+function daysFromNow(dl) { return Math.round((new Date(dl) - new Date()) / 86400000); }
+function fmtDate(dl) { return new Date(dl).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+
+// ══ MODAL ══
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'action-modal') {
+    const sel = document.getElementById('am-essay');
+    sel.innerHTML = '<option value="">none</option>' + S.essays.map((e,i)=>`<option value="${i}">${e.school} — ${e.type}</option>`).join('');
+  }
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+// ══ ONBOARDING ══
+let selectedRole = 'student';
+function selectRole(role, el) {
+  selectedRole = role;
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  const btn = document.getElementById('step1-btn');
+  btn.disabled = false; btn.style.opacity = '1';
+  document.getElementById('student-yr').style.display = role==='counselor'?'none':'block';
+}
+function nextStep(n) {
+  document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('step'+n).classList.add('active');
+  for(let i=1;i<=3;i++) document.getElementById('p'+i).classList.toggle('done', i<n);
+}
+function finishOnboarding() {
+  const name = document.getElementById('ob-name').value.trim() || 'Student';
+  S.user = { name, email: document.getElementById('ob-email').value.trim(), role: selectedRole, year: document.getElementById('ob-year')?.value };
+  const passion = document.getElementById('ob-passion').value.trim();
+  const word = document.getElementById('ob-word').value.trim();
+  if(passion) S.narrative.question = passion;
+  if(word) S.narrative.throughline = word;
+  save(); launchApp();
+}
+
+// ══ LAUNCH ══
+function launchApp() {
+  if(!S.user) return;
+  document.getElementById('onboarding').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const u = S.user;
+  document.getElementById('top-avatar').textContent = u.name.charAt(0).toUpperCase();
+  document.getElementById('role-chip').textContent = u.role;
+  document.getElementById('role-chip').className = 'chip' + (u.role==='counselor'?' counselor-chip':'');
+  document.getElementById('s-name').value = u.name;
+  document.getElementById('s-email').value = u.email;
+  document.getElementById('s-role').value = u.role;
+  if(u.role==='counselor') document.getElementById('student-switcher').classList.add('visible');
+  const hr = new Date().getHours();
+  document.getElementById('dash-greeting').textContent = (hr<12?'good morning':hr<17?'good afternoon':'good evening')+', '+u.name.split(' ')[0]+'.';
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  niStep = 0; renderNI();
+  renderDashboard(); renderEssayList(); renderEssayContext();
+  renderSchools(); renderDeadlines(); renderActions(); renderActivities(); renderSessions();
+  updateBadges();
+}
+
+// ══ NAVIGATE ══
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const item = document.querySelector(`[data-page="${page}"]`);
+  if(item) item.classList.add('active');
+  document.getElementById('breadcrumb').innerHTML = `<strong style="color:var(--text);font-weight:500;">${page.replace('-',' ')}</strong>`;
+  if(page==='dashboard') renderDashboard();
+  if(page==='essays') { renderEssayList(); renderEssayContext(); }
+  if(page==='narrative') renderNI();
+}
+
+function updateBadges() {
+  document.getElementById('essay-badge').textContent = S.essays.length;
+  document.getElementById('school-badge').textContent = S.schools.length;
+  const open = S.actions.filter(a=>!a.done).length;
+  const ab = document.getElementById('action-badge');
+  ab.textContent = open;
+  ab.className = 'sb-badge' + (open>0?' alert':'');
+}
+
+// ══ DASHBOARD ══
+function renderDashboard() {
+  // pickup card
+  const lastEssays = S.essays.filter(e=>e.content && e.content.trim());
+  const pickup = lastEssays.length ? S.essays[S.lastEssayIdx] || lastEssays[lastEssays.length-1] : null;
+  const pickupCard = document.getElementById('pickup-card');
+  if(pickup) {
+    document.getElementById('pickup-essay-name').textContent = pickup.school + (pickup.type !== 'Common App' ? ' — ' + pickup.type : ' — main essay');
+    document.getElementById('pickup-status').innerHTML = `<span class="status-pill ${pickup.status.replace(/\s/g,'-')}">${pickup.status}</span><span style="font-size:11px;color:var(--text-muted);">${wc(pickup.content)} words</span>`;
+    const lastWords = pickup.content.trim().split(/\s+/).slice(-12).join(' ');
+    document.getElementById('pickup-hint').textContent = '"...' + lastWords + '"';
+    pickupCard.style.display = '';
+  } else {
+    pickupCard.style.display = 'none';
+  }
+
+  // actions
+  const openActs = S.actions.filter(a=>!a.done).slice(0,5);
+  document.getElementById('dash-actions').innerHTML = openActs.length ? openActs.map(a=>{
+    const idx = S.actions.indexOf(a);
+    const relEssay = a.essayIdx !== undefined && S.essays[a.essayIdx] ? S.essays[a.essayIdx].school : '';
+    return `<div class="dash-action-row">
+      <div class="dash-check ${a.done?'checked':''}" onclick="toggleActionDash(${idx})"></div>
+      <div>
+        <div class="dash-action-text ${a.done?'checked':''}">${a.task}</div>
+        ${relEssay||a.due?`<div class="dash-action-context">${relEssay?relEssay+' · ':''}${a.due?'due '+fmtDate(a.due):''}</div>`:''}
+      </div>
+    </div>`;
+  }).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:0.5rem 0;">all clear</div>';
+
+  // deadlines
+  const dls = S.schools.filter(s=>s.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline)).slice(0,4);
+  document.getElementById('dash-deadlines').innerHTML = dls.length ? dls.map(s=>{
+    const d = daysFromNow(s.deadline);
+    const cls = d<=14?'urgent':d<=60?'soon':'ok';
+    return `<div class="dash-dl-row"><div><div class="dash-dl-name">${s.name}</div><div class="dash-dl-sub">${s.type}</div></div><div class="dash-dl-badge ${cls}">${d<=0?'today!':d+' days'}</div></div>`;
+  }).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:0.5rem 0;">no deadlines yet</div>';
+
+  // narrative pulse
+  const q = S.narrative.question, t = S.narrative.throughline;
+  const np = document.getElementById('dash-narrative');
+  np.innerHTML = `<div class="np-label">your narrative thread</div>` + (q||t
+    ? `<div class="np-thread">${q?`<em>question: </em>${q}<br><br>`:''}${t?`<em>through-line: </em>${t}`:''}</div>`
+    : `<div style="font-size:13px;color:var(--text-muted);font-style:italic;">no narrative yet — <span style="color:var(--brown);cursor:pointer;" onclick="navigate('narrative')">start building it →</span></div>`);
+
+  // counselor view
+  if(S.user?.role === 'counselor') {
+    document.getElementById('counselor-students-section').style.display = '';
+    document.getElementById('students-overview').innerHTML = `
+      <div class="student-card active-student">
+        <div class="sc-name">Katherine Zhang</div>
+        <div class="sc-meta">class of 2026 · 3 essays in progress</div>
+        <div class="sc-flags"><span class="sc-flag feedback-pending">feedback pending</span></div>
+      </div>
+      <div class="student-card">
+        <div class="sc-name">+ add student</div>
+        <div class="sc-meta">invite them to clove</div>
+      </div>`;
+  }
+}
+
+function toggleActionDash(idx) { S.actions[idx].done = !S.actions[idx].done; save(); renderDashboard(); renderActions(); updateBadges(); }
+function pickupEssay() {
+  const lastEssays = S.essays.filter(e=>e.content && e.content.trim());
+  if(!lastEssays.length) return;
+  const essay = S.essays[S.lastEssayIdx] || lastEssays[lastEssays.length-1];
+  const idx = S.essays.indexOf(essay);
+  navigate('essays');
+  setTimeout(()=>openEssayWithReentry(idx), 100);
+}
+
+// ══ RE-ENTRY ══
+function openEssayWithReentry(idx) {
+  const e = S.essays[idx];
+  if(!e.content || wc(e.content) < 30) { openEssay(idx); return; }
+  document.getElementById('re-essay-name').textContent = e.school + (e.type !== 'Common App' ? ' — ' + e.type : ' — main essay');
+  document.getElementById('re-last-edited').textContent = 'last saved · ' + wc(e.content) + ' words written';
+  const lastLine = e.content.trim().split(/[.!?]/g).filter(s=>s.trim()).slice(-2).join('. ').trim() + '...';
+  document.getElementById('re-last-line').textContent = lastLine || e.content.trim().slice(-120) + '...';
+  if(e.feedback && e.feedback.trim()) {
+    document.getElementById('re-feedback').textContent = e.feedback.trim().slice(0,200);
+    document.getElementById('re-feedback-wrap').style.display = '';
+  } else { document.getElementById('re-feedback-wrap').style.display = 'none'; }
+  const thread = [S.narrative.throughline, S.narrative.question].filter(Boolean);
+  document.getElementById('re-thread').textContent = thread.join(' · ') || 'not built yet — go to narrative thread';
+  const q = SIDEWAYS_QUESTIONS[Math.floor(Math.random()*SIDEWAYS_QUESTIONS.length)];
+  document.getElementById('re-question').textContent = q;
+  document.getElementById('reentry-overlay').classList.add('open');
+  window._reentryIdx = idx;
+}
+function enterEssay() { document.getElementById('reentry-overlay').classList.remove('open'); openEssay(window._reentryIdx); }
+function closeReentry() { document.getElementById('reentry-overlay').classList.remove('open'); openEssay(window._reentryIdx); }
+
+// ══ NARRATIVE INTERVIEW ══
+function renderNI() {
+  const steps = NI_QUESTIONS;
+  const prog = document.getElementById('ni-progress');
+  prog.innerHTML = steps.map((_,i)=>`<div class="ni-dot ${i<=niStep?'done':''}"></div>`).join('');
+  const step = steps[niStep];
+  document.getElementById('ni-q').textContent = step.q;
+  document.getElementById('ni-hint').textContent = step.hint;
+  document.getElementById('ni-step-label').textContent = `${niStep+1} of ${steps.length}`;
+  document.getElementById('ni-prev-btn').style.visibility = niStep===0?'hidden':'visible';
+  document.getElementById('ni-next-btn').textContent = niStep===steps.length-1 ? 'save thread ✓' : 'next →';
+
+  const niField = document.getElementById('ni-answer');
+  const niWrap = document.getElementById('ni-wrap');
+  if(step.isTags) {
+    niWrap.querySelector('textarea')?.remove();
+    if(!document.getElementById('theme-tag-wrap')) {
+      const tw = document.createElement('div');
+      tw.className = 'tag-input-wrap'; tw.id = 'theme-tag-wrap';
+      tw.onclick = ()=>document.getElementById('theme-input').focus();
+      niWrap.insertBefore(tw, document.getElementById('ni-nav'));
+      renderThemeTags();
+    }
+  } else {
+    const existing = document.getElementById('theme-tag-wrap');
+    if(existing) existing.remove();
+    if(!document.getElementById('ni-answer')) {
+      const ta = document.createElement('textarea');
+      ta.className = 'ni-field' + (step.big?'':' single-line');
+      ta.id = 'ni-answer'; ta.placeholder = 'type your answer here...';
+      niWrap.insertBefore(ta, document.getElementById('ni-nav'));
+    } else {
+      const ta = document.getElementById('ni-answer');
+      ta.className = 'ni-field' + (step.big?'':' single-line');
+    }
+    document.getElementById('ni-answer').value = S.narrative[step.key] || '';
+  }
+  renderThreadPreview();
+}
+
+function niNext() {
+  const step = NI_QUESTIONS[niStep];
+  if(!step.isTags) { S.narrative[step.key] = document.getElementById('ni-answer')?.value || ''; }
+  else { S.narrative.themes = themes; }
+  save(); renderThreadPreview();
+  if(niStep < NI_QUESTIONS.length-1) { niStep++; renderNI(); }
+  else { save(); toast('narrative saved ✓'); renderEssayContext(); }
+}
+function niPrev() { if(niStep>0) { niStep--; renderNI(); } }
+
+function renderThemeTags() {
+  const wrap = document.getElementById('theme-tag-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  themes.forEach((t,i)=>{
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.innerHTML = `${t} <span class="tag-x" onclick="removeTheme(${i})">×</span>`;
+    wrap.appendChild(tag);
+  });
+  const inp = document.createElement('input');
+  inp.className = 'tag-input-inline'; inp.id = 'theme-input'; inp.placeholder = 'add theme, press Enter...';
+  inp.addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key===',')&&inp.value.trim()) {
+      e.preventDefault(); themes.push(inp.value.trim()); inp.value = '';
+      renderThemeTags(); renderThreadPreview();
+    }
+  });
+  wrap.appendChild(inp);
+}
+function removeTheme(i) { themes.splice(i,1); renderThemeTags(); renderThreadPreview(); }
+
+function renderThreadPreview() {
+  const items = [
+    { key:'question', label:'core question', val: S.narrative.question || document.getElementById('ni-answer')?.value },
+    { key:'throughline', label:'through-line', val: S.narrative.throughline },
+    { key:'origin', label:'origin moment', val: S.narrative.origin },
+    { key:'themes', label:'themes', val: themes.join(' · ') },
+    { key:'feeling', label:'admissions should feel', val: S.narrative.feeling }
+  ].filter(i=>i.val);
+  document.getElementById('tp-content').innerHTML = items.length
+    ? items.map(i=>`<div class="tp-item"><div class="tp-key">${i.label}</div><div class="tp-val">${i.val}</div></div>`).join('')
+    : '<div class="tp-val empty">answer the questions below to see your story emerge.</div>';
+}
+
+// ══ ESSAYS ══
+const STATUS_OPTS = ['not started','outline','draft 1','draft 2','revising','final'];
+function statusColor(s) {
+  if(s==='final') return '#1D9E75';
+  if(['draft 1','draft 2','revising','outline'].includes(s)) return '#EF9F27';
+  return '#D3D1C7';
+}
+
+function renderEssayList() {
+  const el = document.getElementById('essay-list-items');
+  if(!S.essays.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">✍️</div><div class="empty-title">no essays yet</div><div class="empty-desc">add one above</div></div>'; return; }
+  el.innerHTML = S.essays.map((e,i)=>`
+    <div class="essay-list-item ${i===currentEssayIdx?'active':''}" onclick="openEssayWithReentry(${i})">
+      <div class="eli-school">${e.school}</div>
+      <div class="eli-type">${e.type}${e.prompt?' · '+e.prompt.substring(0,40)+'...':''}</div>
+      <div class="eli-bottom">
+        <span class="status-pill ${e.status.replace(/\s/g,'-')}">${e.status}</span>
+        <span class="eli-wc">${wc(e.content)} / ${e.limit||'—'}</span>
+      </div>
+    </div>`).join('');
+}
+
+function openEssay(idx) {
+  currentEssayIdx = idx; S.lastEssayIdx = idx; save();
+  const e = S.essays[idx];
+  document.getElementById('essay-empty-state').style.display = 'none';
+  const wrap = document.getElementById('essay-editor-wrap');
+  wrap.style.display = 'flex';
+  document.getElementById('ee-school').textContent = e.school;
+  document.getElementById('ee-meta').textContent = e.type + (e.limit?' · '+e.limit+' words':'') + (e.prompt?' · '+e.prompt.substring(0,50)+'...':'');
+  const pb = document.getElementById('ee-prompt-box');
+  if(e.prompt) { pb.textContent = e.prompt; pb.style.display = ''; } else pb.style.display = 'none';
+  document.getElementById('ee-content').value = e.content || '';
+  const sel = document.getElementById('ee-status-sel');
+  sel.innerHTML = STATUS_OPTS.map(s=>`<option value="${s}" ${s===e.status?'selected':''}>${s}</option>`).join('');
+  updateEssayWC();
+  renderEssayList();
+  renderEssayContext();
+  // language register check
+  const words = (e.content||'').toLowerCase().split(/\s+/);
+  const resumeHits = RESUME_WORDS.filter(r=>words.includes(r));
+  const regWrap = document.getElementById('ecp-register-wrap');
+  const regFlag = document.getElementById('ecp-register-flag');
+  if(resumeHits.length >= 3) {
+    regFlag.innerHTML = `<div class="rf-title">resume register detected</div><div class="rf-text">words like "${resumeHits.slice(0,3).join('", "')}" read like a CV. try translating them into what it actually felt like.</div>`;
+    regWrap.style.display = '';
+  } else { regWrap.style.display = 'none'; }
+  // feedback
+  const fbWrap = document.getElementById('ecp-feedback-wrap');
+  const fbContent = document.getElementById('ecp-feedback-content');
+  if(S.user?.role === 'counselor') {
+    fbWrap.style.display = '';
+    document.getElementById('ecp-feedback-label').textContent = 'your feedback';
+    fbContent.innerHTML = `<textarea class="fp-textarea" id="counselor-fb-ta" placeholder="leave feedback for this student...">${e.feedback||''}</textarea><button class="btn sm primary" style="margin-top:6px;" onclick="saveCounselorFeedback()">save feedback</button>`;
+  } else if(e.feedback) {
+    fbWrap.style.display = '';
+    document.getElementById('ecp-feedback-label').textContent = 'counselor feedback';
+    fbContent.innerHTML = `<div class="feedback-panel"><div class="fp-label">gina</div><div class="fp-text">${e.feedback}</div></div>`;
+  } else { fbWrap.style.display = 'none'; }
+  document.getElementById('sync-text').textContent = 'ready to sync to drive';
+}
+
+function saveCounselorFeedback() {
+  if(currentEssayIdx===null) return;
+  S.essays[currentEssayIdx].feedback = document.getElementById('counselor-fb-ta')?.value || '';
+  save(); toast('feedback saved ✓');
+}
+
+function renderEssayContext() {
+  // thread
+  const q = S.narrative.question, t = S.narrative.throughline;
+  document.getElementById('ecp-thread-content').innerHTML = (q||t) ? [
+    q&&`<div class="ecp-thread-item"><div class="ecp-thread-key">question</div><div class="ecp-thread-val">${q}</div></div>`,
+    t&&`<div class="ecp-thread-item"><div class="ecp-thread-key">through-line</div><div class="ecp-thread-val">${t}</div></div>`
+  ].filter(Boolean).join('') : '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">build your narrative thread first</div>';
+  // essay mini list
+  document.getElementById('ecp-essay-list').innerHTML = S.essays.length
+    ? S.essays.map((e,i)=>`<div class="ecp-essay-mini" onclick="openEssayWithReentry(${i})"><div class="ecp-dot" style="background:${statusColor(e.status)};"></div><div class="ecp-essay-name ${i===currentEssayIdx?'active':''}">${e.school}${e.type!=='Common App'?' — '+e.type:''}</div><div style="font-size:10px;color:var(--text-muted);">${wc(e.content)}w</div></div>`).join('')
+    : '<div style="font-size:12px;color:var(--text-muted);">no essays yet</div>';
+  // deadlines
+  const dls = S.schools.filter(s=>s.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline)).slice(0,3);
+  document.getElementById('ecp-deadlines').innerHTML = dls.length
+    ? dls.map(s=>{ const d=daysFromNow(s.deadline); const cls=d<=14?'urgent':d<=60?'soon':'ok'; return `<div class="ecp-dl-row"><div class="ecp-dl-school">${s.name}</div><div class="ecp-dl-badge ${cls}">${d}d</div></div>`; }).join('')
+    : '<div style="font-size:12px;color:var(--text-muted);">no schools added yet</div>';
+}
+
+function updateEssayWC() {
+  if(currentEssayIdx===null) return;
+  const content = document.getElementById('ee-content').value;
+  const count = wc(content);
+  const limit = S.essays[currentEssayIdx]?.limit;
+  const el = document.getElementById('ee-wc');
+  el.textContent = count;
+  el.className = limit && count > parseInt(limit) ? 'over' : '';
+  document.getElementById('ee-limit-disp').textContent = limit || '—';
+}
+document.getElementById('ee-content').addEventListener('input', updateEssayWC);
+
+function saveEssayContent() {
+  if(currentEssayIdx===null) return;
+  S.essays[currentEssayIdx].content = document.getElementById('ee-content').value;
+  S.essays[currentEssayIdx].status = document.getElementById('ee-status-sel').value;
+  save(); toast('draft saved ✓'); renderEssayList();
+  // re-run register check
+  const words = (S.essays[currentEssayIdx].content||'').toLowerCase().split(/\s+/);
+  const resumeHits = RESUME_WORDS.filter(r=>words.includes(r));
+  const regWrap = document.getElementById('ecp-register-wrap');
+  if(resumeHits.length >= 3) {
+    document.getElementById('ecp-register-flag').innerHTML = `<div class="rf-title">resume register detected</div><div class="rf-text">words like "${resumeHits.slice(0,3).join('", "')}" sound like a CV. translate them into what it felt like.</div>`;
+    regWrap.style.display = '';
+  } else regWrap.style.display = 'none';
+  document.getElementById('sync-text').textContent = 'saved · ready to sync';
+}
+
+function updateEssayStatus() {
+  if(currentEssayIdx===null) return;
+  S.essays[currentEssayIdx].status = document.getElementById('ee-status-sel').value;
+  save(); renderEssayList();
+}
+
+function addEssay() {
+  const e = { school: document.getElementById('em-school').value||'Common App', type: document.getElementById('em-type').value, prompt: document.getElementById('em-prompt').value, limit: document.getElementById('em-limit').value, status:'not started', content:'', feedback:'' };
+  S.essays.push(e); save(); closeModal('essay-modal'); renderEssayList(); renderEssayContext(); updateBadges();
+  ['em-school','em-prompt','em-limit'].forEach(id=>document.getElementById(id).value='');
+  toast('essay added ✓');
+}
+
+// ══ SCHOOLS ══
+function renderSchools(filter) {
+  const el = document.getElementById('school-list');
+  let schools = S.schools;
+  if(filter && filter!=='all') schools = schools.filter(s=>s.type===filter);
+  if(!schools.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏫</div><div class="empty-title">no schools yet</div><div class="empty-desc">add your first school above</div></div>'; return; }
+  el.innerHTML = schools.map((s,i)=>`
+    <div class="school-card">
+      <div class="school-rank">${i+1}</div>
+      <div class="school-info"><div class="school-name">${s.name}</div><div class="school-detail">${s.major||''}${s.why?' · '+s.why.substring(0,55)+'...':''}</div></div>
+      <div class="school-right">
+        ${s.deadline?`<span style="font-size:11px;color:var(--text-muted);">${fmtDate(s.deadline)}</span>`:''}
+        <span class="school-type ${s.type.toLowerCase()}">${s.type}</span>
+        <button class="btn sm danger" onclick="removeSchool(event,${S.schools.indexOf(s)})">✕</button>
+      </div>
+    </div>`).join('');
+}
+function filterSchools(f) { renderSchools(f); }
+function addSchool() {
+  const s = { name:document.getElementById('sm-name').value||'School', type:document.getElementById('sm-type').value, deadline:document.getElementById('sm-deadline').value, major:document.getElementById('sm-major').value, why:document.getElementById('sm-why').value, status:'not started' };
+  S.schools.push(s); save(); closeModal('school-modal'); renderSchools(); renderDeadlines(); renderEssayContext(); updateBadges();
+  ['sm-name','sm-deadline','sm-major','sm-why'].forEach(id=>document.getElementById(id).value='');
+  toast('school added ✓');
+}
+function removeSchool(e,idx) { e.stopPropagation(); if(!confirm('remove?'))return; S.schools.splice(idx,1); save(); renderSchools(); renderDeadlines(); updateBadges(); toast('removed'); }
+
+// ══ DEADLINES ══
+function renderDeadlines() {
+  const el = document.getElementById('deadlines-content');
+  const schools = S.schools.filter(s=>s.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
+  if(!schools.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">no deadlines yet</div><div class="empty-desc">add schools to see deadlines here</div></div>'; return; }
+  const groups = [
+    { title:'urgent — within 30 days', cls:'urgent', color:'var(--danger)', items: schools.filter(s=>daysFromNow(s.deadline)<=30) },
+    { title:'coming up — 30–90 days', cls:'soon', color:'#F39C12', items: schools.filter(s=>{ const d=daysFromNow(s.deadline); return d>30&&d<=90; }) },
+    { title:'later — 90+ days', cls:'ok', color:'var(--sage-text)', items: schools.filter(s=>daysFromNow(s.deadline)>90) }
+  ];
+  el.innerHTML = groups.filter(g=>g.items.length).map(g=>`
+    <div class="dl-section-title">${g.title}</div>
+    ${g.items.map(s=>`<div class="deadline-item"><div class="deadline-bar" style="background:${g.color};"></div><div class="deadline-info"><div class="deadline-title">${s.name}</div><div class="deadline-sub">${s.type}${s.major?' · '+s.major:''}</div></div><div class="dl-days ${g.cls}">${daysFromNow(s.deadline)<=0?'today!':daysFromNow(s.deadline)+' days'}</div></div>`).join('')}
+  `).join('');
+}
+
+// ══ ACTIONS ══
+function renderActions(filter) {
+  const el = document.getElementById('action-list');
+  let acts = S.actions;
+  if(filter==='open') acts = acts.filter(a=>!a.done);
+  if(filter==='done') acts = acts.filter(a=>a.done);
+  if(!acts.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">nothing here</div><div class="empty-desc">add a task above</div></div>'; return; }
+  el.innerHTML = acts.map(a=>{
+    const idx = S.actions.indexOf(a);
+    const relEssay = a.essayIdx!==undefined && S.essays[a.essayIdx] ? S.essays[a.essayIdx].school : '';
+    return `<div class="action-item ${a.done?'done-item':''}">
+      <div class="ai-check ${a.done?'done':''}" onclick="toggleAction(${idx})"></div>
+      <div class="ai-body">
+        <div class="ai-task ${a.done?'done':''}">${a.task}</div>
+        <div class="ai-context">
+          <span class="ai-who ${a.who}">${a.who}</span>
+          ${relEssay?`<span>${relEssay}</span>`:''}
+          ${a.due?`<span>due ${fmtDate(a.due)}</span>`:''}
+        </div>
+      </div>
+      <button class="btn sm danger" onclick="removeAction(${idx})">✕</button>
+    </div>`;
+  }).join('');
+}
+function toggleAction(idx) { S.actions[idx].done=!S.actions[idx].done; save(); renderActions(); updateBadges(); renderDashboard(); }
+function removeAction(idx) { S.actions.splice(idx,1); save(); renderActions(); updateBadges(); toast('removed'); }
+function addAction() {
+  const task = document.getElementById('am-task').value; if(!task) return;
+  const essayIdxVal = document.getElementById('am-essay').value;
+  const a = { task, who:document.getElementById('am-who').value, due:document.getElementById('am-due').value, done:false };
+  if(essayIdxVal!=='') a.essayIdx = parseInt(essayIdxVal);
+  S.actions.push(a); save(); closeModal('action-modal'); renderActions(); updateBadges();
+  document.getElementById('am-task').value=''; document.getElementById('am-due').value='';
+  toast('task added ✓');
+}
+
+// ══ ACTIVITIES ══
+function renderActivities() {
+  const el = document.getElementById('activity-list');
+  if(!S.activities.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⭐</div><div class="empty-title">no activities yet</div><div class="empty-desc">add up to 10 common app activities</div></div>'; return; }
+  el.innerHTML = S.activities.map((a,i)=>`
+    <div class="activity-card">
+      <div class="act-header">
+        <div><span style="font-size:11px;color:var(--text-muted);margin-right:6px;">${i+1}</span><strong class="act-name">${a.name}</strong><span class="tag" style="margin-left:8px;">${a.category}</span></div>
+        <div style="display:flex;gap:6px;align-items:center;"><span class="status-pill ${a.fit==='strong'?'done':a.fit==='ok'?'in-progress':'not-started'}">${a.fit}</span><button class="btn sm danger" onclick="removeActivity(${i})">✕</button></div>
+      </div>
+      <div class="act-desc">${a.desc}</div>
+      <div class="act-footer"><span class="act-charcount ${a.desc.length>150?'over':''}">${a.desc.length} / 150 characters</span></div>
+    </div>`).join('');
+}
+function addActivity() {
+  if(S.activities.length>=10){toast('max 10');return;}
+  const a = { name:document.getElementById('act-name').value, category:document.getElementById('act-cat').value, desc:document.getElementById('act-desc').value, fit:document.getElementById('act-fit').value };
+  if(!a.name)return;
+  S.activities.push(a); save(); closeModal('activity-modal'); renderActivities();
+  document.getElementById('act-name').value=''; document.getElementById('act-desc').value='';
+  toast('activity added ✓');
+}
+function removeActivity(idx) { S.activities.splice(idx,1); save(); renderActivities(); toast('removed'); }
+
+// ══ SESSIONS ══
+function renderSessions() {
+  const el = document.getElementById('session-list');
+  if(!S.sessions.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🤝</div><div class="empty-title">no sessions yet</div><div class="empty-desc">log your first counselor session above</div></div>'; return; }
+  el.innerHTML = S.sessions.slice().reverse().map(s=>`
+    <div class="session-item">
+      <div class="session-date">${s.date?new Date(s.date).toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}):'no date'}</div>
+      <div class="session-summary">${(s.discussed||'').substring(0,120)}${(s.discussed||'').length>120?'...':''}</div>
+      ${s.next?`<div class="session-next">next: ${s.next.substring(0,80)}${s.next.length>80?'...':''}</div>`:''}
+    </div>`).join('');
+}
+function addSession() {
+  const ses = { date:document.getElementById('ses-date').value, discussed:document.getElementById('ses-discussed').value, decisions:document.getElementById('ses-decisions').value, next:document.getElementById('ses-next').value };
+  S.sessions.push(ses); save(); closeModal('session-modal'); renderSessions();
+  ['ses-discussed','ses-decisions','ses-next'].forEach(id=>document.getElementById(id).value='');
+  toast('session saved ✓');
+}
+
+// ══ SETTINGS ══
+function saveSettings() {
+  S.user.name = document.getElementById('s-name').value;
+  S.user.email = document.getElementById('s-email').value;
+  S.user.role = document.getElementById('s-role').value;
+  document.getElementById('top-avatar').textContent = S.user.name.charAt(0).toUpperCase();
+  document.getElementById('role-chip').textContent = S.user.role;
+  document.getElementById('role-chip').className = 'chip' + (S.user.role==='counselor'?' counselor-chip':'');
+  if(S.user.role==='counselor') document.getElementById('student-switcher').classList.add('visible');
+  else document.getElementById('student-switcher').classList.remove('visible');
+  save(); toast('settings saved ✓');
+}
+function switchStudent() { toast('student switching coming with real backend'); }
+function resetAll() { localStorage.removeItem('clove_v2'); location.reload(); }
+
+// ══ BOOT ══
+if(S.user) { document.getElementById('onboarding').style.display='none'; launchApp(); }
+else { document.getElementById('p1').classList.add('done'); }
+</script>
+</body>
+</html>
