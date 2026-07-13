@@ -876,8 +876,15 @@ function initGoogleAuth() {
     google.accounts.id.prompt();
   } else {
     gUser = { name: S.user.name, email: S.user.email, picture: S.user.picture || null, sub: S.user.googleSub || null };
-    // silent re-auth — works if user already consented, no popup shown
-    gTokenClient.requestAccessToken({ prompt: 'none' });
+    // GIS implicit flow requires a user gesture to open its popup.
+    // We hook the first click on the page — totally invisible to the user.
+    if (S.user.driveConnected) {
+      updateSyncBar('reconnecting drive…');
+      document.addEventListener('click', function reauth() {
+        document.removeEventListener('click', reauth);
+        gTokenClient.requestAccessToken({ prompt: '' });
+      }, { once: true, capture: true });
+    }
   }
 }
 
@@ -887,7 +894,7 @@ function onGoogleSignIn(response) {
   gUser = { name: payload.name, email: payload.email, picture: payload.picture, sub: payload.sub };
   if (S.user && S.user.googleSub === gUser.sub) {
     launchApp();
-    gTokenClient.requestAccessToken({ prompt: 'none' });
+    gTokenClient.requestAccessToken({ prompt: '' });
   } else {
     document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
     const pill = document.getElementById('guser-pill');
@@ -904,8 +911,8 @@ function onGoogleSignIn(response) {
 function onGoogleToken(response) {
   if (response.error) { updateSyncBar('click "connect drive" to reconnect', true); return; }
   gToken = response.access_token;
+  S.user.driveConnected = true; save(); // remember so we auto-reconnect next load
   updateSyncBar('connected to drive');
-  // restart polling if an essay with a doc is open
   if (currentEssayIdx !== null) {
     const essay = S.essays[currentEssayIdx];
     if (essay?.docId) startDocPolling(essay);
@@ -935,12 +942,16 @@ function extractDocText(doc) {
       }
     }
   }
-  return text.replace(/\n$/, ''); // docs adds trailing newline
+  return text;
+}
+
+function normalizeForCompare(t) {
+  return (t || '').replace(/\r\n/g, '\n').trimEnd();
 }
 
 async function pollFromDocs(essay) {
   if (!gToken || !essay?.docId) return;
-  if (Date.now() - gLastTyped < 10000) return; // don't overwrite if user typed in last 10s
+  if (Date.now() - gLastTyped < 10000) return; // don't overwrite if user is actively typing
   try {
     const r = await fetch(`https://docs.googleapis.com/v1/documents/${essay.docId}`, {
       headers: { 'Authorization': 'Bearer ' + gToken }
@@ -948,14 +959,16 @@ async function pollFromDocs(essay) {
     if (!r.ok) return;
     const doc = await r.json();
     const docText = extractDocText(doc);
-    const localText = (essay.content || '').trimEnd();
-    if (docText && docText !== localText) {
-      essay.content = docText;
+    const docNorm = normalizeForCompare(docText);
+    const localNorm = normalizeForCompare(essay.content);
+    if (docNorm && docNorm !== localNorm) {
+      const cleanText = docNorm; // use normalized version as the canonical content
+      essay.content = cleanText;
       save();
       const ta = document.getElementById('ee-content');
       const essayIdx = S.essays.indexOf(essay);
       if (ta && currentEssayIdx === essayIdx) {
-        ta.value = docText;
+        ta.value = cleanText;
         updateEssayWC();
         updateSyncBar('updated from google docs ✓');
       }
