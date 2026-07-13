@@ -851,6 +851,8 @@ let gUser = null;
 let gToken = null;
 let gTokenClient = null;
 let gSyncTimer = null;
+let gPollTimer = null;
+let gLastTyped = 0;
 
 function initGoogleAuth() {
   google.accounts.id.initialize({
@@ -863,7 +865,8 @@ function initGoogleAuth() {
   gTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: G_CLIENT_ID,
     scope: G_SCOPE,
-    callback: onGoogleToken
+    callback: onGoogleToken,
+    error_callback: (err) => { updateSyncBar('click "connect drive" to reconnect', true); }
   });
   if (!S.user) {
     google.accounts.id.renderButton(
@@ -873,7 +876,8 @@ function initGoogleAuth() {
     google.accounts.id.prompt();
   } else {
     gUser = { name: S.user.name, email: S.user.email, picture: S.user.picture || null, sub: S.user.googleSub || null };
-    gTokenClient.requestAccessToken({ prompt: '' });
+    // silent re-auth — works if user already consented, no popup shown
+    gTokenClient.requestAccessToken({ prompt: 'none' });
   }
 }
 
@@ -883,7 +887,7 @@ function onGoogleSignIn(response) {
   gUser = { name: payload.name, email: payload.email, picture: payload.picture, sub: payload.sub };
   if (S.user && S.user.googleSub === gUser.sub) {
     launchApp();
-    gTokenClient.requestAccessToken({ prompt: '' });
+    gTokenClient.requestAccessToken({ prompt: 'none' });
   } else {
     document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
     const pill = document.getElementById('guser-pill');
@@ -898,11 +902,65 @@ function onGoogleSignIn(response) {
 }
 
 function onGoogleToken(response) {
-  if (response.error) { updateSyncBar('drive not connected', true); return; }
+  if (response.error) { updateSyncBar('click "connect drive" to reconnect', true); return; }
   gToken = response.access_token;
   updateSyncBar('connected to drive');
+  // restart polling if an essay with a doc is open
+  if (currentEssayIdx !== null) {
+    const essay = S.essays[currentEssayIdx];
+    if (essay?.docId) startDocPolling(essay);
+  }
   const cb = window._gTokenCb;
   if (cb) { window._gTokenCb = null; cb(); }
+}
+
+// ── two-way sync: poll Google Docs → clove ──
+function startDocPolling(essay) {
+  stopDocPolling();
+  if (!gToken || !essay?.docId) return;
+  gPollTimer = setInterval(() => pollFromDocs(essay), 30000);
+  pollFromDocs(essay); // immediate first check
+}
+
+function stopDocPolling() {
+  if (gPollTimer) { clearInterval(gPollTimer); gPollTimer = null; }
+}
+
+function extractDocText(doc) {
+  let text = '';
+  for (const el of doc.body?.content || []) {
+    if (el.paragraph) {
+      for (const pe of el.paragraph.elements || []) {
+        if (pe.textRun) text += pe.textRun.content;
+      }
+    }
+  }
+  return text.replace(/\n$/, ''); // docs adds trailing newline
+}
+
+async function pollFromDocs(essay) {
+  if (!gToken || !essay?.docId) return;
+  if (Date.now() - gLastTyped < 10000) return; // don't overwrite if user typed in last 10s
+  try {
+    const r = await fetch(`https://docs.googleapis.com/v1/documents/${essay.docId}`, {
+      headers: { 'Authorization': 'Bearer ' + gToken }
+    });
+    if (!r.ok) return;
+    const doc = await r.json();
+    const docText = extractDocText(doc);
+    const localText = (essay.content || '').trimEnd();
+    if (docText && docText !== localText) {
+      essay.content = docText;
+      save();
+      const ta = document.getElementById('ee-content');
+      const essayIdx = S.essays.indexOf(essay);
+      if (ta && currentEssayIdx === essayIdx) {
+        ta.value = docText;
+        updateEssayWC();
+        updateSyncBar('updated from google docs ✓');
+      }
+    }
+  } catch(e) { console.error('pollFromDocs', e); }
 }
 
 function requestDriveAccess(callback) {
@@ -968,6 +1026,7 @@ function launchApp() {
 
 // ══ NAVIGATE ══
 function navigate(page) {
+  if(page !== 'essays') stopDocPolling();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -1228,7 +1287,7 @@ function openEssay(idx) {
   // Drive sync state
   const docsBtn = document.getElementById('open-in-docs-btn');
   if(docsBtn) docsBtn.style.display = (e.docId && gToken) ? '' : 'none';
-  if(gToken && e.docId) updateSyncBar('ready to sync');
+  if(gToken && e.docId) { updateSyncBar('ready to sync'); startDocPolling(e); }
   else if(gToken) updateSyncBar('click connect drive to create your doc');
   else updateSyncBar('connect drive to sync');
 }
@@ -1267,7 +1326,7 @@ function updateEssayWC() {
   el.className = limit && count > parseInt(limit) ? 'over' : '';
   document.getElementById('ee-limit-disp').textContent = limit || '—';
 }
-document.getElementById('ee-content').addEventListener('input', () => { updateEssayWC(); scheduleDriveSync(); });
+document.getElementById('ee-content').addEventListener('input', () => { gLastTyped = Date.now(); updateEssayWC(); scheduleDriveSync(); });
 
 function saveEssayContent() {
   if(currentEssayIdx===null) return;
