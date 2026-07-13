@@ -854,6 +854,25 @@ let gSyncTimer = null;
 let gPollTimer = null;
 let gLastTyped = 0;
 
+// ── token cache (avoids reconnect on every refresh within 55 min) ──
+function saveDriveToken(token) {
+  try { localStorage.setItem('clove_gtok', JSON.stringify({ token, expiry: Date.now() + 55*60*1000 })); } catch(e) {}
+}
+function loadDriveToken() {
+  try { const d = JSON.parse(localStorage.getItem('clove_gtok')); if (d && d.expiry > Date.now()) return d.token; } catch(e) {}
+  return null;
+}
+function clearDriveToken() { localStorage.removeItem('clove_gtok'); }
+
+function applyToken(token) {
+  gToken = token;
+  updateSyncBar('connected to drive');
+  if (currentEssayIdx !== null) {
+    const essay = S.essays[currentEssayIdx];
+    if (essay?.docId) startDocPolling(essay);
+  }
+}
+
 function initGoogleAuth() {
   google.accounts.id.initialize({
     client_id: G_CLIENT_ID,
@@ -866,7 +885,7 @@ function initGoogleAuth() {
     client_id: G_CLIENT_ID,
     scope: G_SCOPE,
     callback: onGoogleToken,
-    error_callback: (err) => { updateSyncBar('click "connect drive" to reconnect', true); }
+    error_callback: () => { clearDriveToken(); updateSyncBar('click "connect drive" to reconnect', true); }
   });
   if (!S.user) {
     google.accounts.id.renderButton(
@@ -876,9 +895,12 @@ function initGoogleAuth() {
     google.accounts.id.prompt();
   } else {
     gUser = { name: S.user.name, email: S.user.email, picture: S.user.picture || null, sub: S.user.googleSub || null };
-    // GIS implicit flow requires a user gesture to open its popup.
-    // We hook the first click on the page — totally invisible to the user.
-    if (S.user.driveConnected) {
+    const cached = loadDriveToken();
+    if (cached) {
+      // valid cached token — use it immediately, zero user interaction
+      applyToken(cached);
+    } else if (S.user.driveConnected) {
+      // token expired — reconnect on first click (invisible, no extra step for user)
       updateSyncBar('reconnecting drive…');
       document.addEventListener('click', function reauth() {
         document.removeEventListener('click', reauth);
@@ -894,7 +916,8 @@ function onGoogleSignIn(response) {
   gUser = { name: payload.name, email: payload.email, picture: payload.picture, sub: payload.sub };
   if (S.user && S.user.googleSub === gUser.sub) {
     launchApp();
-    gTokenClient.requestAccessToken({ prompt: '' });
+    const cached = loadDriveToken();
+    if (cached) { applyToken(cached); } else { gTokenClient.requestAccessToken({ prompt: '' }); }
   } else {
     document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
     const pill = document.getElementById('guser-pill');
@@ -909,14 +932,10 @@ function onGoogleSignIn(response) {
 }
 
 function onGoogleToken(response) {
-  if (response.error) { updateSyncBar('click "connect drive" to reconnect', true); return; }
-  gToken = response.access_token;
-  S.user.driveConnected = true; save(); // remember so we auto-reconnect next load
-  updateSyncBar('connected to drive');
-  if (currentEssayIdx !== null) {
-    const essay = S.essays[currentEssayIdx];
-    if (essay?.docId) startDocPolling(essay);
-  }
+  if (response.error) { clearDriveToken(); updateSyncBar('click "connect drive" to reconnect', true); return; }
+  saveDriveToken(response.access_token);
+  S.user.driveConnected = true; save();
+  applyToken(response.access_token);
   const cb = window._gTokenCb;
   if (cb) { window._gTokenCb = null; cb(); }
 }
