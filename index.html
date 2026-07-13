@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>clove.</title>
 <script src="https://accounts.google.com/gsi/client" async onload="initGoogleAuth()"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -759,6 +760,11 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
       <input class="field-input" id="sm-name" placeholder="type to search US & HK universities…" autocomplete="off" />
       <div class="school-ac-dropdown" id="school-ac-dropdown"></div>
     </div>
+    <div id="sm-round-wrap" style="display:none;">
+      <label class="field-label">application round</label>
+      <select class="field-select" id="sm-round" onchange="applyRound(this.value)"></select>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:-6px;margin-bottom:0.9rem;">based on historical patterns — verify on the school's website</div>
+    </div>
     <label class="field-label">application type</label>
     <select class="field-select" id="sm-type"><option value="ED">Early Decision (ED)</option><option value="EA">Early Action (EA)</option><option value="RD">Regular Decision (RD)</option></select>
     <label class="field-label">deadline</label><input class="field-input" id="sm-deadline" type="date" />
@@ -840,7 +846,38 @@ const SIDEWAYS_QUESTIONS = [
   "what's the question this experience left you with that you still haven't answered?"
 ];
 
-function save() { S.narrative.themes = themes; localStorage.setItem('clove_v2', JSON.stringify(S)); }
+// ══ SUPABASE ══
+const SB_URL = 'https://jddfbfabnontopdxjtok.supabase.co';
+const SB_KEY = 'sb_publishable_mXbEjXHtF2Kh7Lwc73AQVA_1qoKG6O6';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+let _sbSaveTimer = null;
+function saveToSupabase() {
+  clearTimeout(_sbSaveTimer);
+  _sbSaveTimer = setTimeout(async () => {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      await sb.from('user_data').upsert({ user_id: user.id, data: S, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    } catch(e) { console.warn('supabase save failed', e); }
+  }, 1500);
+}
+
+async function loadUserData(userId) {
+  try {
+    const { data, error } = await sb.from('user_data').select('data').eq('user_id', userId).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data?.data) {
+      S = data.data;
+      themes = [...(S.narrative?.themes || [])];
+      localStorage.setItem('clove_v2', JSON.stringify(S));
+      return true;
+    }
+  } catch(e) { console.warn('loadUserData failed', e); }
+  return false;
+}
+
+function save() { S.narrative.themes = themes; localStorage.setItem('clove_v2', JSON.stringify(S)); saveToSupabase(); }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2100); }
 function wc(text) { return (text||'').trim().split(/\s+/).filter(Boolean).length; }
 function daysFromNow(dl) { return Math.round((new Date(dl) - new Date()) / 86400000); }
@@ -923,25 +960,44 @@ function initGoogleAuth() {
   }
 }
 
-function onGoogleSignIn(response) {
+async function onGoogleSignIn(response) {
   const parts = response.credential.split('.');
   const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
   gUser = { name: payload.name, email: payload.email, picture: payload.picture, sub: payload.sub };
+
+  // Sign in to Supabase with the Google credential
+  try {
+    const { data: authData, error: authErr } = await sb.auth.signInWithIdToken({ provider: 'google', token: response.credential });
+    if (authErr) console.warn('supabase auth error', authErr);
+    if (authData?.user) {
+      const loaded = await loadUserData(authData.user.id);
+      if (loaded && S.user) {
+        launchApp();
+        const cached = loadDriveToken();
+        if (cached) { applyToken(cached); } else if (S.user.driveConnected) { gTokenClient.requestAccessToken({ prompt: '' }); }
+        return;
+      }
+    }
+  } catch(e) { console.warn('supabase sign-in failed', e); }
+
+  // Returning local user (no cloud data yet)
   if (S.user && S.user.googleSub === gUser.sub) {
     launchApp();
     const cached = loadDriveToken();
     if (cached) { applyToken(cached); } else { gTokenClient.requestAccessToken({ prompt: '' }); }
-  } else {
-    document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
-    const pill = document.getElementById('guser-pill');
-    const avatarEl = document.getElementById('guser-avatar');
-    if (gUser.picture) { avatarEl.src = gUser.picture; avatarEl.style.display = ''; }
-    document.getElementById('guser-name').textContent = gUser.name;
-    document.getElementById('guser-email').textContent = gUser.email;
-    pill.style.display = 'flex';
-    document.getElementById('ob-progress').style.display = 'flex';
-    nextStep(2);
+    return;
   }
+
+  // New user — show onboarding steps 2+3
+  document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
+  const pill = document.getElementById('guser-pill');
+  const avatarEl = document.getElementById('guser-avatar');
+  if (gUser.picture) { avatarEl.src = gUser.picture; avatarEl.style.display = ''; }
+  document.getElementById('guser-name').textContent = gUser.name;
+  document.getElementById('guser-email').textContent = gUser.email;
+  pill.style.display = 'flex';
+  document.getElementById('ob-progress').style.display = 'flex';
+  nextStep(2);
 }
 
 function onGoogleToken(response) {
@@ -1028,7 +1084,7 @@ function nextStep(n) {
   document.getElementById('step'+n).classList.add('active');
   for(let i=1;i<=2;i++) { const d=document.getElementById('p'+i); if(d) d.classList.toggle('done', i<n-1); }
 }
-function finishOnboarding() {
+async function finishOnboarding() {
   S.user = {
     name: gUser?.name || 'Student',
     email: gUser?.email || '',
@@ -1043,6 +1099,13 @@ function finishOnboarding() {
   save();
   launchApp();
   requestDriveAccess();
+  // upsert profile row for counselor-student pairing later
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+      await sb.from('profiles').upsert({ id: user.id, name: S.user.name, email: S.user.email, role: selectedRole, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    }
+  } catch(e) { console.warn('profile upsert failed', e); }
 }
 
 // ══ LAUNCH ══
@@ -1488,6 +1551,136 @@ async function addEssay() {
   }
 }
 
+// ══ SCHOOL DEADLINES (2026-2027 cycle, based on historical patterns) ══
+const SCHOOL_DEADLINES = {
+  // ── Ivy League ──
+  'Harvard University':[{l:'Restrictive Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Yale University':[{l:'Restrictive Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Princeton University':[{l:'Restrictive Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Columbia University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'University of Pennsylvania':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-05'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'Brown University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'Dartmouth College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Cornell University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  // ── MIT / Stanford / Caltech ──
+  'Massachusetts Institute of Technology':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Stanford University':[{l:'Restrictive Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-03'}],
+  'California Institute of Technology':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-03'}],
+  // ── Top universities ──
+  'Duke University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-02'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Northwestern University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-03'}],
+  'Johns Hopkins University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-02'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Vanderbilt University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Rice University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'University of Notre Dame':[{l:'Restrictive Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Georgetown University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-10'}],
+  'Emory University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Carnegie Mellon University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'University of Southern California':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Tufts University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Wake Forest University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'New York University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'Boston University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-02'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Northeastern University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Tulane University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Case Western Reserve University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'George Washington University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-05'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'American University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'University of Rochester':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-05'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'Lehigh University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Boston College':[{l:'Early Decision',t:'ED',d:'2026-11-01'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Brandeis University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Rensselaer Polytechnic Institute':[{l:'Early Decision',t:'ED',d:'2026-11-01'},{l:'Early Action',t:'EA',d:'2026-12-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Fordham University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'University of Miami':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Pepperdine University':[{l:'Early Decision',t:'ED',d:'2026-11-01'},{l:'Early Action',t:'EA',d:'2026-11-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Syracuse University':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Early Action',t:'EA',d:'2026-11-15'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'University of Pittsburgh':[{l:'Early Decision',t:'ED',d:'2026-11-01'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-15'}],
+  'Drexel University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-03-01'}],
+  // ── UC System ──
+  'University of California, Los Angeles':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, Berkeley':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, San Diego':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, Davis':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, Irvine':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, Santa Barbara':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, Santa Cruz':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of California, Riverside':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  // ── Public flagships ──
+  'University of Michigan':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'University of Virginia':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'University of North Carolina at Chapel Hill':[{l:'Early Action',t:'EA',d:'2026-10-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'University of Wisconsin-Madison':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'University of Illinois Urbana-Champaign':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-12-01'}],
+  'Georgia Institute of Technology':[{l:'Early Action I',t:'EA',d:'2026-10-15'},{l:'Early Action II',t:'EA',d:'2026-12-15'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'University of Texas at Austin':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2026-12-01'}],
+  'University of Florida':[{l:'Regular Decision',t:'RD',d:'2026-11-01'}],
+  'University of Georgia':[{l:'Early Action',t:'EA',d:'2026-10-15'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'University of Washington':[{l:'Regular Decision',t:'RD',d:'2026-11-15'}],
+  'Purdue University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Ohio State University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'University of Maryland':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-20'}],
+  'Indiana University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'University of Minnesota':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Penn State University':[{l:'Regular Decision',t:'RD',d:'2026-11-30'}],
+  'University of Connecticut':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'University of Vermont':[{l:'Early Decision',t:'ED',d:'2026-11-01'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Villanova University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  // ── Liberal arts colleges ──
+  'Amherst College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Williams College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Pomona College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-08'}],
+  'Wellesley College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-08'}],
+  'Swarthmore College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Bowdoin College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'Middlebury College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2026-11-15'},{l:'Early Decision III',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-03'}],
+  'Vassar College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Wesleyan University':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-02'}],
+  'Colgate University':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Colby College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Bates College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Hamilton College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Oberlin College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-02'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Smith College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Mount Holyoke College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Barnard College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Bryn Mawr College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Grinnell College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Carleton College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Macalester College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Davidson College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Harvey Mudd College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-05'},{l:'Regular Decision',t:'RD',d:'2027-01-05'}],
+  'Claremont McKenna College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-05'},{l:'Regular Decision',t:'RD',d:'2027-01-08'}],
+  'Scripps College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Pitzer College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-01'}],
+  'Bucknell University':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Lafayette College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Skidmore College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Kenyon College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-02-01'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Connecticut College':[{l:'Early Decision I',t:'ED',d:'2026-11-15'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Regular Decision',t:'RD',d:'2027-02-01'}],
+  'Trinity College':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  // ── Santa Clara / West Coast ──
+  'Santa Clara University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'Loyola Marymount University':[{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  'University of San Diego':[{l:'Early Action',t:'EA',d:'2026-11-15'},{l:'Regular Decision',t:'RD',d:'2027-02-15'}],
+  'University of Denver':[{l:'Early Decision I',t:'ED',d:'2026-11-01'},{l:'Early Decision II',t:'ED',d:'2027-01-15'},{l:'Early Action',t:'EA',d:'2026-11-01'},{l:'Regular Decision',t:'RD',d:'2027-01-15'}],
+  // ── Hong Kong ──
+  'University of Hong Kong':[{l:'Early Admission (Non-JUPAS)',t:'EA',d:'2026-12-01'},{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2027-01-30'}],
+  'Hong Kong University of Science and Technology':[{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2026-12-01'}],
+  'Chinese University of Hong Kong':[{l:'Early Admission (Non-JUPAS)',t:'EA',d:'2026-12-01'},{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2027-01-31'}],
+  'City University of Hong Kong':[{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2027-01-31'}],
+  'Hong Kong Baptist University':[{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2027-02-28'}],
+  'Hong Kong Polytechnic University':[{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2027-02-28'}],
+  'Lingnan University':[{l:'Regular Decision (Non-JUPAS)',t:'RD',d:'2027-02-28'}],
+};
+
+function applyRound(val) {
+  if (!val) return;
+  const [type, date] = val.split('|');
+  document.getElementById('sm-type').value = type;
+  document.getElementById('sm-deadline').value = date;
+}
+
 // ══ SCHOOL AUTOCOMPLETE ══
 let hipoData = null;
 let acHighlight = -1;
@@ -1523,6 +1716,16 @@ function closeSchoolAC() {
 function pickSchool(name) {
   document.getElementById('sm-name').value = name;
   closeSchoolAC();
+  const rounds = SCHOOL_DEADLINES[name];
+  const wrap = document.getElementById('sm-round-wrap');
+  const sel = document.getElementById('sm-round');
+  if (rounds && rounds.length) {
+    sel.innerHTML = rounds.map(r => `<option value="${r.t}|${r.d}">${r.l} — ${new Date(r.d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</option>`).join('');
+    wrap.style.display = '';
+    applyRound(sel.value);
+  } else {
+    wrap.style.display = 'none';
+  }
 }
 
 // wire up the input after DOM is ready
@@ -1682,7 +1885,22 @@ function switchStudent() { toast('student switching coming with real backend'); 
 function resetAll() { localStorage.removeItem('clove_v2'); location.reload(); }
 
 // ══ BOOT ══
-if(S.user) { document.getElementById('onboarding').style.display='none'; launchApp(); }
+(async () => {
+  // Try Supabase session first — enables cross-device persistence
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      const loaded = await loadUserData(session.user.id);
+      if (loaded && S.user) {
+        document.getElementById('onboarding').style.display = 'none';
+        launchApp();
+        return;
+      }
+    }
+  } catch(e) { console.warn('boot session check failed', e); }
+  // Fall back to localStorage (offline / first load before GIS fires)
+  if(S.user) { document.getElementById('onboarding').style.display='none'; launchApp(); }
+})();
 // Google auth initialised by onload callback on the GIS script tag
 </script>
 </body>
