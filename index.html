@@ -352,6 +352,15 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
 .toggle-knob { width: 15px; height: 15px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.2s; }
 .toggle.on .toggle-knob { transform: translateX(15px); }
 
+/* ── SCHOOL AUTOCOMPLETE ── */
+.school-ac-wrap { position:relative; }
+.school-ac-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--white); border:0.5px solid var(--border-mid); border-top:none; border-radius:0 0 var(--r-md) var(--r-md); z-index:200; max-height:220px; overflow-y:auto; display:none; }
+.school-ac-dropdown.open { display:block; }
+.school-ac-item { padding:8px 13px; font-size:13px; color:var(--text); cursor:pointer; border-bottom:0.5px solid var(--border); }
+.school-ac-item:last-child { border-bottom:none; }
+.school-ac-item:hover, .school-ac-item.highlighted { background:var(--cream); }
+.school-ac-country { font-size:10px; color:var(--text-muted); margin-left:6px; }
+
 /* ── GOOGLE AUTH ── */
 .ob-google-wrap { display:flex; flex-direction:column; align-items:center; padding:1.5rem 0 0.75rem; }
 .ob-google-note { font-size:11px; color:var(--text-muted); text-align:center; margin-top:0.9rem; line-height:1.6; max-width:260px; }
@@ -745,7 +754,11 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
 <div class="modal-overlay" id="school-modal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">add school</div><span class="modal-close" onclick="closeModal('school-modal')">×</span></div>
-    <label class="field-label">school name</label><input class="field-input" id="sm-name" placeholder="e.g. Harvard University" />
+    <label class="field-label">school name</label>
+    <div class="school-ac-wrap">
+      <input class="field-input" id="sm-name" placeholder="type to search US & HK universities…" autocomplete="off" />
+      <div class="school-ac-dropdown" id="school-ac-dropdown"></div>
+    </div>
     <label class="field-label">application type</label>
     <select class="field-select" id="sm-type"><option value="ED">Early Decision (ED)</option><option value="EA">Early Action (EA)</option><option value="RD">Regular Decision (RD)</option></select>
     <label class="field-label">deadline</label><input class="field-input" id="sm-deadline" type="date" />
@@ -1474,6 +1487,64 @@ async function addEssay() {
     if(docId) { e.docId = docId; e.docUrl = `https://docs.google.com/document/d/${docId}/edit`; save(); toast('google doc created ✓'); }
   }
 }
+
+// ══ SCHOOL AUTOCOMPLETE ══
+let hipoData = null;
+let acHighlight = -1;
+
+async function fetchHipoData() {
+  if (hipoData) return hipoData;
+  try {
+    const r = await fetch('https://raw.githubusercontent.com/Hipo/university-domains-list/master/world_universities_and_domains.json');
+    const all = await r.json();
+    hipoData = all.filter(u => u.alpha_two_code === 'US' || u.alpha_two_code === 'HK')
+                  .sort((a,b) => a.name.localeCompare(b.name));
+  } catch(e) { hipoData = []; }
+  return hipoData;
+}
+
+function openSchoolAC(items) {
+  const dd = document.getElementById('school-ac-dropdown');
+  if (!items.length) { dd.classList.remove('open'); return; }
+  acHighlight = -1;
+  dd.innerHTML = items.map((u,i) =>
+    `<div class="school-ac-item" data-name="${u.name}" onmousedown="pickSchool('${u.name.replace(/'/g,"\\'")}')">
+      ${u.name}<span class="school-ac-country">${u.alpha_two_code === 'HK' ? 'HK' : u['state-province'] || 'US'}</span>
+    </div>`
+  ).join('');
+  dd.classList.add('open');
+}
+
+function closeSchoolAC() {
+  document.getElementById('school-ac-dropdown')?.classList.remove('open');
+  acHighlight = -1;
+}
+
+function pickSchool(name) {
+  document.getElementById('sm-name').value = name;
+  closeSchoolAC();
+}
+
+// wire up the input after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('sm-name');
+  inp.addEventListener('input', async () => {
+    const q = inp.value.trim().toLowerCase();
+    if (q.length < 2) { closeSchoolAC(); return; }
+    const data = await fetchHipoData();
+    const matches = data.filter(u => u.name.toLowerCase().includes(q)).slice(0, 10);
+    openSchoolAC(matches);
+  });
+  inp.addEventListener('keydown', (e) => {
+    const items = document.querySelectorAll('.school-ac-item');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); acHighlight = Math.min(acHighlight+1, items.length-1); items.forEach((el,i)=>el.classList.toggle('highlighted',i===acHighlight)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); acHighlight = Math.max(acHighlight-1, 0); items.forEach((el,i)=>el.classList.toggle('highlighted',i===acHighlight)); }
+    else if (e.key === 'Enter' && acHighlight >= 0) { e.preventDefault(); pickSchool(items[acHighlight].dataset.name); }
+    else if (e.key === 'Escape') closeSchoolAC();
+  });
+  inp.addEventListener('blur', () => setTimeout(closeSchoolAC, 150));
+});
 
 // ══ SCHOOLS ══
 function renderSchools(filter) {
