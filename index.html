@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>clove.</title>
+<script src="https://accounts.google.com/gsi/client" async onload="initGoogleAuth()"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -350,6 +351,16 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
 .toggle.on { background: var(--brown-deep); }
 .toggle-knob { width: 15px; height: 15px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.2s; }
 .toggle.on .toggle-knob { transform: translateX(15px); }
+
+/* ── GOOGLE AUTH ── */
+.ob-google-wrap { display:flex; flex-direction:column; align-items:center; padding:1.5rem 0 0.75rem; }
+.ob-google-note { font-size:11px; color:var(--text-muted); text-align:center; margin-top:0.9rem; line-height:1.6; max-width:260px; }
+.guser-pill { display:none; align-items:center; gap:8px; padding:6px 10px; background:var(--cream); border-radius:20px; border:0.5px solid var(--cream-dark); margin-bottom:1.1rem; }
+.guser-avatar { width:24px; height:24px; border-radius:50%; }
+.guser-name { font-size:12px; color:var(--text); font-weight:500; }
+.guser-email { font-size:10px; color:var(--text-muted); }
+.drive-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:600; padding:2px 8px; border-radius:9px; background:var(--sage); color:var(--sage-text); }
+.top-avatar-img { width:28px; height:28px; border-radius:50%; object-fit:cover; display:block; }
 </style>
 </head>
 <body>
@@ -359,33 +370,40 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
   <div class="ob-card">
     <div class="ob-logo">clove<span>.</span></div>
     <div class="ob-tagline">your story, grown from the ground up.</div>
-    <div class="ob-progress">
+    <div class="ob-progress" id="ob-progress" style="display:none;">
       <div class="ob-dot" id="p1"></div>
       <div class="ob-dot" id="p2"></div>
-      <div class="ob-dot" id="p3"></div>
     </div>
+
+    <!-- step 1: Google sign-in -->
     <div class="ob-step active" id="step1">
       <div class="ob-title">welcome to clove.</div>
+      <div class="ob-sub">sign in to save your work and sync essays to Google Drive.</div>
+      <div class="ob-google-wrap">
+        <div id="google-signin-btn"></div>
+        <div class="ob-google-note">we only request access to files clove creates — nothing else in your Drive.</div>
+      </div>
+    </div>
+
+    <!-- step 2: role selection -->
+    <div class="ob-step" id="step2">
+      <div class="guser-pill" id="guser-pill">
+        <img class="guser-avatar" id="guser-avatar" src="" alt="" />
+        <div>
+          <div class="guser-name" id="guser-name"></div>
+          <div class="guser-email" id="guser-email"></div>
+        </div>
+      </div>
+      <div class="ob-title">welcome, <span id="ob-welcome-name">there</span>.</div>
       <div class="ob-sub">who are you? we'll set things up differently for each role.</div>
       <div class="role-grid">
         <div class="role-card" onclick="selectRole('student',this)"><div class="role-icon">🎓</div><div class="role-name">student</div><div class="role-desc">applying to college</div></div>
         <div class="role-card" onclick="selectRole('counselor',this)"><div class="role-icon">🌿</div><div class="role-name">counselor</div><div class="role-desc">i guide students</div></div>
       </div>
-      <button class="btn-full" id="step1-btn" onclick="nextStep(2)" disabled style="opacity:0.5">continue</button>
+      <button class="btn-full" id="step2-btn" onclick="nextStep(3)" disabled style="opacity:0.5">continue</button>
     </div>
-    <div class="ob-step" id="step2">
-      <div class="ob-title">a little about you.</div>
-      <div class="ob-sub">just the basics.</div>
-      <label class="field-label">your name</label>
-      <input class="field-input" id="ob-name" placeholder="Katherine Zhang" />
-      <label class="field-label">email</label>
-      <input class="field-input" id="ob-email" type="email" placeholder="you@email.com" />
-      <div id="student-yr">
-        <label class="field-label">graduating year</label>
-        <select class="field-select" id="ob-year"><option>2026</option><option>2027</option><option>2028</option></select>
-      </div>
-      <button class="btn-full" onclick="nextStep(3)">continue</button>
-    </div>
+
+    <!-- step 3: what drives you -->
     <div class="ob-step" id="step3">
       <div class="ob-title">what drives you?</div>
       <div class="ob-sub">one sentence is perfect. this becomes the seed of everything.</div>
@@ -579,6 +597,7 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
                 </div>
                 <div class="eep-controls">
                   <select id="ee-status-sel" class="field-select" style="margin-bottom:0;font-size:11px;padding:4px 8px;width:auto;" onchange="updateEssayStatus()"></select>
+                  <button id="open-in-docs-btn" class="btn sm" style="display:none;" onclick="openInGoogleDocs()">↗ open in docs</button>
                   <button class="btn sm primary" onclick="saveEssayContent()">save</button>
                 </div>
               </div>
@@ -589,7 +608,7 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
               <div class="eep-footer">
                 <div class="wc-display"><span id="ee-wc">0</span> / <span id="ee-limit-disp">—</span> words</div>
                 <div class="btn-row">
-                  <button class="btn sm ghost">sync to drive</button>
+                  <button id="drive-footer-btn" class="btn sm ghost" onclick="connectDriveForEssay()">connect drive</button>
                 </div>
               </div>
             </div>
@@ -617,8 +636,8 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
               <div id="ecp-deadlines"></div>
             </div>
             <div class="sync-bar">
-              <div class="sync-dot"></div>
-              <span id="sync-text">not yet synced</span>
+              <div class="sync-dot" id="sync-dot"></div>
+              <span id="sync-text">not connected</span>
             </div>
           </div>
         </div>
@@ -825,29 +844,102 @@ function openModal(id) {
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
 
+// ══ GOOGLE AUTH ══
+const G_CLIENT_ID = '337762650222-qrvuibj0feepouf6hogdstsa6i34ubtv.apps.googleusercontent.com';
+const G_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+let gUser = null;
+let gToken = null;
+let gTokenClient = null;
+let gSyncTimer = null;
+
+function initGoogleAuth() {
+  google.accounts.id.initialize({
+    client_id: G_CLIENT_ID,
+    callback: onGoogleSignIn,
+    auto_select: false,
+    cancel_on_tap_outside: false,
+    ux_mode: 'popup'
+  });
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: G_CLIENT_ID,
+    scope: G_SCOPE,
+    callback: onGoogleToken
+  });
+  if (!S.user) {
+    google.accounts.id.renderButton(
+      document.getElementById('google-signin-btn'),
+      { theme: 'outline', size: 'large', width: 280, text: 'continue_with', shape: 'rectangular' }
+    );
+    google.accounts.id.prompt();
+  } else {
+    gUser = { name: S.user.name, email: S.user.email, picture: S.user.picture || null, sub: S.user.googleSub || null };
+    gTokenClient.requestAccessToken({ prompt: '' });
+  }
+}
+
+function onGoogleSignIn(response) {
+  const parts = response.credential.split('.');
+  const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+  gUser = { name: payload.name, email: payload.email, picture: payload.picture, sub: payload.sub };
+  if (S.user && S.user.googleSub === gUser.sub) {
+    launchApp();
+    gTokenClient.requestAccessToken({ prompt: '' });
+  } else {
+    document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
+    const pill = document.getElementById('guser-pill');
+    const avatarEl = document.getElementById('guser-avatar');
+    if (gUser.picture) { avatarEl.src = gUser.picture; avatarEl.style.display = ''; }
+    document.getElementById('guser-name').textContent = gUser.name;
+    document.getElementById('guser-email').textContent = gUser.email;
+    pill.style.display = 'flex';
+    document.getElementById('ob-progress').style.display = 'flex';
+    nextStep(2);
+  }
+}
+
+function onGoogleToken(response) {
+  if (response.error) { updateSyncBar('drive not connected', true); return; }
+  gToken = response.access_token;
+  updateSyncBar('connected to drive');
+  const cb = window._gTokenCb;
+  if (cb) { window._gTokenCb = null; cb(); }
+}
+
+function requestDriveAccess(callback) {
+  if (gToken) { if (callback) callback(); return; }
+  if (callback) window._gTokenCb = callback;
+  gTokenClient.requestAccessToken({ prompt: gToken ? '' : 'consent' });
+}
+
 // ══ ONBOARDING ══
 let selectedRole = 'student';
 function selectRole(role, el) {
   selectedRole = role;
   document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
-  const btn = document.getElementById('step1-btn');
+  const btn = document.getElementById('step2-btn');
   btn.disabled = false; btn.style.opacity = '1';
-  document.getElementById('student-yr').style.display = role==='counselor'?'none':'block';
 }
 function nextStep(n) {
   document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('active'));
   document.getElementById('step'+n).classList.add('active');
-  for(let i=1;i<=3;i++) document.getElementById('p'+i).classList.toggle('done', i<n);
+  for(let i=1;i<=2;i++) { const d=document.getElementById('p'+i); if(d) d.classList.toggle('done', i<n-1); }
 }
 function finishOnboarding() {
-  const name = document.getElementById('ob-name').value.trim() || 'Student';
-  S.user = { name, email: document.getElementById('ob-email').value.trim(), role: selectedRole, year: document.getElementById('ob-year')?.value };
+  S.user = {
+    name: gUser?.name || 'Student',
+    email: gUser?.email || '',
+    role: selectedRole,
+    googleSub: gUser?.sub || null,
+    picture: gUser?.picture || null
+  };
   const passion = document.getElementById('ob-passion').value.trim();
   const word = document.getElementById('ob-word').value.trim();
   if(passion) S.narrative.question = passion;
   if(word) S.narrative.throughline = word;
-  save(); launchApp();
+  save();
+  launchApp();
+  requestDriveAccess();
 }
 
 // ══ LAUNCH ══
@@ -856,7 +948,9 @@ function launchApp() {
   document.getElementById('onboarding').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   const u = S.user;
-  document.getElementById('top-avatar').textContent = u.name.charAt(0).toUpperCase();
+  const av = document.getElementById('top-avatar');
+  if (u.picture) { av.innerHTML = `<img class="top-avatar-img" src="${u.picture}" alt="" />`; av.style.background='none'; }
+  else { av.textContent = u.name.charAt(0).toUpperCase(); }
   document.getElementById('role-chip').textContent = u.role;
   document.getElementById('role-chip').className = 'chip' + (u.role==='counselor'?' counselor-chip':'');
   document.getElementById('s-name').value = u.name;
@@ -1131,7 +1225,12 @@ function openEssay(idx) {
     document.getElementById('ecp-feedback-label').textContent = 'counselor feedback';
     fbContent.innerHTML = `<div class="feedback-panel"><div class="fp-label">gina</div><div class="fp-text">${e.feedback}</div></div>`;
   } else { fbWrap.style.display = 'none'; }
-  document.getElementById('sync-text').textContent = 'ready to sync to drive';
+  // Drive sync state
+  const docsBtn = document.getElementById('open-in-docs-btn');
+  if(docsBtn) docsBtn.style.display = (e.docId && gToken) ? '' : 'none';
+  if(gToken && e.docId) updateSyncBar('ready to sync');
+  else if(gToken) updateSyncBar('click connect drive to create your doc');
+  else updateSyncBar('connect drive to sync');
 }
 
 function saveCounselorFeedback() {
@@ -1168,14 +1267,13 @@ function updateEssayWC() {
   el.className = limit && count > parseInt(limit) ? 'over' : '';
   document.getElementById('ee-limit-disp').textContent = limit || '—';
 }
-document.getElementById('ee-content').addEventListener('input', updateEssayWC);
+document.getElementById('ee-content').addEventListener('input', () => { updateEssayWC(); scheduleDriveSync(); });
 
 function saveEssayContent() {
   if(currentEssayIdx===null) return;
   S.essays[currentEssayIdx].content = document.getElementById('ee-content').value;
   S.essays[currentEssayIdx].status = document.getElementById('ee-status-sel').value;
   save(); toast('draft saved ✓'); renderEssayList();
-  // re-run register check
   const words = (S.essays[currentEssayIdx].content||'').toLowerCase().split(/\s+/);
   const resumeHits = RESUME_WORDS.filter(r=>words.includes(r));
   const regWrap = document.getElementById('ecp-register-wrap');
@@ -1183,7 +1281,9 @@ function saveEssayContent() {
     document.getElementById('ecp-register-flag').innerHTML = `<div class="rf-title">resume register detected</div><div class="rf-text">words like "${resumeHits.slice(0,3).join('", "')}" sound like a CV. translate them into what it felt like.</div>`;
     regWrap.style.display = '';
   } else regWrap.style.display = 'none';
-  document.getElementById('sync-text').textContent = 'saved · ready to sync';
+  const essay = S.essays[currentEssayIdx];
+  if(gToken && essay.docId) syncEssayToDoc(essay);
+  else updateSyncBar(gToken ? 'saved · click connect drive to create doc' : 'saved locally');
 }
 
 function updateEssayStatus() {
@@ -1192,11 +1292,96 @@ function updateEssayStatus() {
   save(); renderEssayList();
 }
 
-function addEssay() {
-  const e = { school: document.getElementById('em-school').value||'Common App', type: document.getElementById('em-type').value, prompt: document.getElementById('em-prompt').value, limit: document.getElementById('em-limit').value, status:'not started', content:'', feedback:'' };
+// ══ GOOGLE DRIVE ══
+function updateSyncBar(msg, isError) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-text');
+  if(txt) txt.textContent = msg;
+  if(dot) { dot.style.background = isError ? 'var(--danger)' : '#1D9E75'; dot.style.animationName = isError ? 'none' : 'pulse'; }
+  const fb = document.getElementById('drive-footer-btn');
+  if(fb) fb.textContent = (gToken && currentEssayIdx !== null && S.essays[currentEssayIdx]?.docId) ? 'sync now' : gToken ? 'create drive doc' : 'connect drive';
+}
+
+async function createGoogleDoc(title) {
+  try {
+    const r = await fetch('https://docs.googleapis.com/v1/documents', {
+      method:'POST', headers:{'Authorization':'Bearer '+gToken,'Content-Type':'application/json'},
+      body: JSON.stringify({title})
+    });
+    const d = await r.json(); return d.documentId || null;
+  } catch(e) { console.error('createDoc', e); return null; }
+}
+
+async function syncEssayToDoc(essay) {
+  if(!gToken || !essay.docId) return;
+  updateSyncBar('syncing…');
+  try {
+    const gr = await fetch(`https://docs.googleapis.com/v1/documents/${essay.docId}`, {headers:{'Authorization':'Bearer '+gToken}});
+    if(!gr.ok) throw new Error(gr.status);
+    const doc = await gr.json();
+    const body = doc.body?.content || [];
+    const endIndex = body[body.length-1]?.endIndex ?? 1;
+    const requests = [];
+    if(endIndex > 1) requests.push({deleteContentRange:{range:{startIndex:1,endIndex:endIndex-1}}});
+    if(essay.content) requests.push({insertText:{location:{index:1},text:essay.content}});
+    if(!requests.length) { updateSyncBar('synced · nothing changed'); return; }
+    const ur = await fetch(`https://docs.googleapis.com/v1/documents/${essay.docId}:batchUpdate`, {
+      method:'POST', headers:{'Authorization':'Bearer '+gToken,'Content-Type':'application/json'},
+      body: JSON.stringify({requests})
+    });
+    if(!ur.ok) throw new Error(ur.status);
+    const t = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    updateSyncBar('synced · '+t);
+  } catch(e) { console.error('syncToDoc', e); updateSyncBar('sync failed — try again', true); }
+}
+
+function scheduleDriveSync() {
+  if(gSyncTimer) clearTimeout(gSyncTimer);
+  updateSyncBar('autosaving…');
+  gSyncTimer = setTimeout(async () => {
+    if(currentEssayIdx===null) return;
+    const essay = S.essays[currentEssayIdx];
+    essay.content = document.getElementById('ee-content').value;
+    save();
+    if(gToken && essay.docId) await syncEssayToDoc(essay);
+    else updateSyncBar(gToken ? 'saved locally · no doc yet' : 'saved locally');
+  }, 3000);
+}
+
+async function connectDriveForEssay() {
+  if(!gUser) { toast('sign in with Google first'); return; }
+  requestDriveAccess(async () => {
+    if(currentEssayIdx===null) return;
+    const essay = S.essays[currentEssayIdx];
+    if(!essay.docId) {
+      const title = essay.school + (essay.type!=='Common App' ? ' — '+essay.type : ' — main essay');
+      updateSyncBar('creating google doc…');
+      const docId = await createGoogleDoc(title);
+      if(docId) {
+        essay.docId = docId; essay.docUrl = `https://docs.google.com/document/d/${docId}/edit`;
+        save(); document.getElementById('open-in-docs-btn').style.display = '';
+        await syncEssayToDoc(essay);
+      } else updateSyncBar('could not create doc', true);
+    } else { await syncEssayToDoc(essay); }
+  });
+}
+
+function openInGoogleDocs() {
+  if(currentEssayIdx===null) return;
+  const essay = S.essays[currentEssayIdx];
+  if(essay?.docUrl) window.open(essay.docUrl, '_blank');
+}
+
+async function addEssay() {
+  const e = { school: document.getElementById('em-school').value||'Common App', type: document.getElementById('em-type').value, prompt: document.getElementById('em-prompt').value, limit: document.getElementById('em-limit').value, status:'not started', content:'', feedback:'', docId:null, docUrl:null };
   S.essays.push(e); save(); closeModal('essay-modal'); renderEssayList(); renderEssayContext(); updateBadges();
   ['em-school','em-prompt','em-limit'].forEach(id=>document.getElementById(id).value='');
   toast('essay added ✓');
+  if(gToken) {
+    const title = e.school + (e.type!=='Common App' ? ' — '+e.type : ' — main essay');
+    const docId = await createGoogleDoc(title);
+    if(docId) { e.docId = docId; e.docUrl = `https://docs.google.com/document/d/${docId}/edit`; save(); toast('google doc created ✓'); }
+  }
 }
 
 // ══ SCHOOLS ══
@@ -1336,7 +1521,7 @@ function resetAll() { localStorage.removeItem('clove_v2'); location.reload(); }
 
 // ══ BOOT ══
 if(S.user) { document.getElementById('onboarding').style.display='none'; launchApp(); }
-else { document.getElementById('p1').classList.add('done'); }
+// Google auth initialised by onload callback on the GIS script tag
 </script>
 </body>
 </html>
