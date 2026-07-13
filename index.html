@@ -947,18 +947,20 @@ function initGoogleAuth() {
     gUser = { name: S.user.name, email: S.user.email, picture: S.user.picture || null, sub: S.user.googleSub || null };
     const cached = loadDriveToken();
     if (cached) {
-      // valid cached token — use it immediately, zero user interaction
       applyToken(cached);
     } else if (S.user.driveConnected) {
-      // token expired — reconnect on first click (invisible, no extra step for user)
       updateSyncBar('reconnecting drive…');
       document.addEventListener('click', function reauth() {
         document.removeEventListener('click', reauth);
         gTokenClient.requestAccessToken({ prompt: '' });
       }, { once: true, capture: true });
     }
+    // silently re-authenticate with Google to establish Supabase session and push local data up
+    google.accounts.id.prompt();
   }
 }
+
+const appIsRunning = () => document.getElementById('app').style.display !== 'none';
 
 async function onGoogleSignIn(response) {
   const parts = response.credential.split('.');
@@ -970,6 +972,11 @@ async function onGoogleSignIn(response) {
     const { data: authData, error: authErr } = await sb.auth.signInWithIdToken({ provider: 'google', token: response.credential });
     if (authErr) console.warn('supabase auth error', authErr);
     if (authData?.user) {
+      // App already running (silent re-auth on existing session) — just push local data up
+      if (appIsRunning()) {
+        saveToSupabase();
+        return;
+      }
       const loaded = await loadUserData(authData.user.id);
       if (loaded && S.user) {
         launchApp();
@@ -982,9 +989,11 @@ async function onGoogleSignIn(response) {
 
   // Returning local user (no cloud data yet)
   if (S.user && S.user.googleSub === gUser.sub) {
-    launchApp();
-    const cached = loadDriveToken();
-    if (cached) { applyToken(cached); } else { gTokenClient.requestAccessToken({ prompt: '' }); }
+    if (!appIsRunning()) {
+      launchApp();
+      const cached = loadDriveToken();
+      if (cached) { applyToken(cached); } else { gTokenClient.requestAccessToken({ prompt: '' }); }
+    }
     return;
   }
 
