@@ -970,19 +970,16 @@ async function onGoogleSignIn(response) {
   gUser = { name: payload.name, email: payload.email, picture: payload.picture, sub: payload.sub };
   window._lastGCredential = response.credential;
 
-  // If a manual sync is waiting, run it now and return
+  // If a manual cloud sync is waiting, run it and return
   if (window._manualSyncCb) { const cb = window._manualSyncCb; window._manualSyncCb = null; cb(); return; }
 
-  // Sign in to Supabase with the Google credential
+  // App already open — this is a background token refresh, just sync
+  if (appIsRunning()) { saveToSupabase(); return; }
+
+  // Try Supabase — load cloud data if available
   try {
-    const { data: authData, error: authErr } = await sb.auth.signInWithIdToken({ provider: 'google', token: response.credential });
-    if (authErr) console.warn('supabase auth error', authErr);
+    const { data: authData } = await sb.auth.signInWithIdToken({ provider: 'google', token: response.credential });
     if (authData?.user) {
-      // App already running (silent re-auth on existing session) — just push local data up
-      if (appIsRunning()) {
-        saveToSupabase();
-        return;
-      }
       const loaded = await loadUserData(authData.user.id);
       if (loaded && S.user) {
         launchApp();
@@ -991,20 +988,17 @@ async function onGoogleSignIn(response) {
         return;
       }
     }
-  } catch(e) { console.warn('supabase sign-in failed', e); }
+  } catch(e) { console.warn('supabase sign-in skipped', e); }
 
-  // Returning local user (no cloud data yet)
+  // Local returning user (has data in this browser already)
   if (S.user && S.user.googleSub === gUser.sub) {
-    if (!appIsRunning()) {
-      launchApp();
-      const cached = loadDriveToken();
-      if (cached) { applyToken(cached); } else { gTokenClient.requestAccessToken({ prompt: '' }); }
-    }
+    launchApp();
+    const cached = loadDriveToken();
+    if (cached) { applyToken(cached); } else if (S.user.driveConnected) { gTokenClient.requestAccessToken({ prompt: '' }); }
     return;
   }
 
-  // New user — show onboarding steps 2+3
-  document.getElementById('ob-welcome-name').textContent = gUser.name.split(' ')[0];
+  // Brand new user on this device — proceed to role selection
   const pill = document.getElementById('guser-pill');
   const avatarEl = document.getElementById('guser-avatar');
   if (gUser.picture) { avatarEl.src = gUser.picture; avatarEl.style.display = ''; }
@@ -1012,6 +1006,8 @@ async function onGoogleSignIn(response) {
   document.getElementById('guser-email').textContent = gUser.email;
   pill.style.display = 'flex';
   document.getElementById('ob-progress').style.display = 'flex';
+  const nameEl = document.getElementById('ob-welcome-name');
+  if (nameEl) nameEl.textContent = gUser.name.split(' ')[0];
   nextStep(2);
 }
 
