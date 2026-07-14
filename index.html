@@ -855,23 +855,39 @@ const SB_URL = 'https://jddfbfabnontopdxjtok.supabase.co';
 const SB_KEY = 'sb_publishable_mXbEjXHtF2Kh7Lwc73AQVA_1qoKG6O6';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
+// Race a promise against a timeout — never let Supabase block the UI
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' timed out')), ms))
+  ]);
+}
+
 let _sbSaveTimer = null;
 function saveToSupabase() {
+  if (!S.user) return; // never sync a placeholder/empty state
   clearTimeout(_sbSaveTimer);
   _sbSaveTimer = setTimeout(async () => {
     try {
-      const { data: { user } } = await sb.auth.getUser();
+      const { data: { user } } = await withTimeout(sb.auth.getUser(), 5000, 'getUser');
       if (!user) return;
-      await sb.from('user_data').upsert({ user_id: user.id, data: S, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      await withTimeout(
+        sb.from('user_data').upsert({ user_id: user.id, data: S, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }),
+        8000, 'upsert'
+      );
     } catch(e) { console.warn('supabase save failed', e); }
   }, 1500);
 }
 
 async function loadUserData(userId) {
   try {
-    const { data, error } = await sb.from('user_data').select('data').eq('user_id', userId).single();
+    const { data, error } = await withTimeout(
+      sb.from('user_data').select('data').eq('user_id', userId).single(),
+      6000, 'loadUserData'
+    );
     if (error && error.code !== 'PGRST116') throw error;
-    if (data?.data) {
+    // Only accept cloud data if it contains a valid user — never overwrite good local state with empty blob
+    if (data?.data && data.data.user && data.data.user.googleSub) {
       S = data.data;
       themes = [...(S.narrative?.themes || [])];
       localStorage.setItem('clove_v2', JSON.stringify(S));
@@ -976,9 +992,12 @@ async function onGoogleSignIn(response) {
   // App already open — this is a background token refresh, just sync
   if (appIsRunning()) { saveToSupabase(); return; }
 
-  // Try Supabase — load cloud data if available
+  // Try Supabase — load cloud data if available (bounded so it can never block sign-in)
   try {
-    const { data: authData } = await sb.auth.signInWithIdToken({ provider: 'google', token: response.credential });
+    const { data: authData } = await withTimeout(
+      sb.auth.signInWithIdToken({ provider: 'google', token: response.credential }),
+      5000, 'signInWithIdToken'
+    );
     if (authData?.user) {
       const loaded = await loadUserData(authData.user.id);
       if (loaded && S.user) {
@@ -1925,21 +1944,22 @@ async function updateCloudSyncStatus() {
 }
 
 // ══ BOOT ══
+// Local data ALWAYS wins on boot — launch immediately if we have it, then let cloud sync in the background
+if (S.user) { document.getElementById('onboarding').style.display = 'none'; launchApp(); }
+
+// Best-effort: try to load cloud data if the user has no local data yet (e.g. new device)
 (async () => {
-  // Try Supabase session first — enables cross-device persistence
+  if (S.user) return; // already launched from local
   try {
-    const { data: { session } } = await sb.auth.getSession();
+    const { data: { session } } = await withTimeout(sb.auth.getSession(), 4000, 'getSession');
     if (session?.user) {
       const loaded = await loadUserData(session.user.id);
       if (loaded && S.user) {
         document.getElementById('onboarding').style.display = 'none';
         launchApp();
-        return;
       }
     }
-  } catch(e) { console.warn('boot session check failed', e); }
-  // Fall back to localStorage (offline / first load before GIS fires)
-  if(S.user) { document.getElementById('onboarding').style.display='none'; launchApp(); }
+  } catch(e) { console.warn('boot session check skipped', e); }
 })();
 // Google auth initialised by onload callback on the GIS script tag
 </script>
