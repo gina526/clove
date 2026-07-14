@@ -732,7 +732,7 @@ html, body { height: 100%; font-family: var(--font); background: var(--bg); colo
             <div class="divider"></div>
             <div class="settings-section-title">cloud sync</div>
             <div class="settings-row" style="margin-bottom:0.75rem;"><div class="settings-key" id="sync-status-text">checking...</div></div>
-            <button class="btn primary" id="cloud-sync-btn" onclick="manualCloudSync()" style="margin-bottom:0.75rem;">back up to cloud</button>
+            <div id="cloud-sync-btn-wrap" style="margin-bottom:0.75rem;"></div>
             <div class="divider"></div>
             <button class="btn danger" onclick="if(confirm('reset everything?'))resetAll()">reset all data</button>
           </div>
@@ -959,8 +959,6 @@ function initGoogleAuth() {
         gTokenClient.requestAccessToken({ prompt: '' });
       }, { once: true, capture: true });
     }
-    // silently re-authenticate with Google to establish Supabase session and push local data up
-    google.accounts.id.prompt();
   }
 }
 
@@ -1904,34 +1902,30 @@ function resetAll() { localStorage.removeItem('clove_v2'); location.reload(); }
 
 async function updateCloudSyncStatus() {
   const el = document.getElementById('sync-status-text');
-  const btn = document.getElementById('cloud-sync-btn');
+  const wrap = document.getElementById('cloud-sync-btn-wrap');
   if (!el) return;
   const { data: { user } } = await sb.auth.getUser().catch(() => ({ data: { user: null } }));
   if (user) {
     el.textContent = 'connected — data syncs automatically';
-    if (btn) btn.textContent = 'sync now';
+    if (wrap) wrap.innerHTML = '';
   } else {
-    el.textContent = 'not connected to cloud yet';
-    if (btn) btn.textContent = 'back up to cloud';
+    el.textContent = 'sign in to back up your data across devices';
+    if (wrap) {
+      wrap.innerHTML = '';
+      window._manualSyncCb = async () => {
+        try {
+          const { data: authData } = await sb.auth.signInWithIdToken({ provider: 'google', token: window._lastGCredential });
+          if (authData?.user) {
+            await sb.from('user_data').upsert({ user_id: authData.user.id, data: S, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+            await sb.from('profiles').upsert({ id: authData.user.id, name: S.user.name, email: S.user.email, role: S.user.role, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            toast('backed up to cloud ✓');
+            updateCloudSyncStatus();
+          }
+        } catch(e) { toast('sync failed — try again'); console.warn(e); }
+      };
+      google.accounts.id.renderButton(wrap, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular', width: 240 });
+    }
   }
-}
-
-function manualCloudSync() {
-  const btn = document.getElementById('cloud-sync-btn');
-  if (btn) { btn.textContent = 'connecting...'; btn.disabled = true; }
-  window._manualSyncCb = async () => {
-    try {
-      const { data: authData } = await sb.auth.signInWithIdToken({ provider: 'google', token: window._lastGCredential });
-      if (authData?.user) {
-        await sb.from('user_data').upsert({ user_id: authData.user.id, data: S, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-        await sb.from('profiles').upsert({ id: authData.user.id, name: S.user.name, email: S.user.email, role: S.user.role, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-        toast('backed up to cloud ✓');
-        updateCloudSyncStatus();
-      }
-    } catch(e) { toast('sync failed — try again'); console.warn(e); }
-    if (btn) { btn.disabled = false; }
-  };
-  google.accounts.id.prompt();
 }
 
 // ══ BOOT ══
